@@ -1,0 +1,1147 @@
+from __future__ import annotations
+
+import json
+import os
+import queue
+import re
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+
+APP_TITLE = "AutoReel"
+APP_VERSION = "2.0"
+
+ROOT = Path(__file__).resolve().parent
+PROJECTS_DIR = ROOT / "projects"
+ASSETS_DIR = ROOT / "assets"
+VENV_PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
+
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".webm"}
+
+COLORS = {
+    "bg": "#0A0F1E",
+    "panel": "#111827",
+    "panel_2": "#151E30",
+    "panel_hover": "#1A2539",
+    "border": "#243147",
+    "text": "#F8FAFC",
+    "muted": "#94A3B8",
+    "muted_2": "#64748B",
+    "accent": "#4F7CFF",
+    "accent_hover": "#628BFF",
+    "accent_soft": "#172554",
+    "success": "#2DD4BF",
+    "success_soft": "#123B3A",
+    "warning": "#F59E0B",
+    "error": "#F87171",
+    "error_soft": "#3A1B25",
+    "white": "#FFFFFF",
+}
+
+MODULE_ARTIFACTS = {
+    "M0": ("source.json",),
+    "M1": ("transcript.json",),
+    "M2": ("cuts.json", "time_map_speechcut.json"),
+    "M3": ("edit_plan.json", "time_map_smartedit.json"),
+    "M4": ("camera_plan.json",),
+    "M5": ("visual_plan.json",),
+    "M7": ("sound_plan.json",),
+    "M8": ("music_plan.json",),
+    "M6": ("assets_manifest.json",),
+    "M10A": ("timeline_draft.json",),
+    "M9": ("captions.json",),
+    "M10F": ("timeline.json",),
+}
+
+PIPELINE_ORDER = [
+    "M0", "M1", "M2", "M3", "M4", "M5",
+    "M7", "M8", "M6", "M10A", "M9", "M10F",
+]
+
+MODULE_LABELS = {
+    "M0": "Analyse de la vidéo",
+    "M1": "Transcription de la voix",
+    "M2": "Suppression des silences et hésitations",
+    "M3": "Nettoyage éditorial",
+    "M4": "Cadrage automatique vertical",
+    "M5": "Planification des visuels",
+    "M7": "Design sonore",
+    "M8": "Musique et ducking",
+    "M6": "Recherche des médias locaux",
+    "M10A": "Construction de la timeline",
+    "M9": "Sous-titres",
+    "M10F": "Finalisation du montage",
+    "M11": "Préparation DaVinci Resolve",
+}
+
+MACRO_STEPS = [
+    ("source", "Source", "Importation et vérification", ("M0",)),
+    ("voice", "Voix", "Transcription et nettoyage", ("M1", "M2", "M3")),
+    ("camera", "Cadrage", "Recadrage dynamique 9:16", ("M4",)),
+    ("style", "Habillage", "Visuels, son et musique", ("M5", "M7", "M8", "M6")),
+    ("timeline", "Montage", "Timeline et sous-titres", ("M10A", "M9", "M10F")),
+    ("resolve", "DaVinci", "Préparation du projet Resolve", ("M11",)),
+]
+
+
+def sanitize_project_name(value: str) -> str:
+    value = value.strip()
+    value = re.sub(r"[^A-Za-z0-9_-]+", "_", value)
+    return value.strip("_") or "projet"
+
+
+def read_json(path: Path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def find_existing_media(value):
+    if isinstance(value, dict):
+        # Favor explicit source/path fields.
+        for key in ("path", "media_path", "source_path"):
+            candidate = value.get(key)
+            if isinstance(candidate, str):
+                p = Path(candidate)
+                if p.suffix.lower() in VIDEO_EXTENSIONS and p.is_file():
+                    return str(p)
+        for child in value.values():
+            found = find_existing_media(child)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for child in value:
+            found = find_existing_media(child)
+            if found:
+                return found
+    elif isinstance(value, str):
+        p = Path(value)
+        if p.suffix.lower() in VIDEO_EXTENSIONS and p.is_file():
+            return str(p)
+    return None
+
+
+class MacroStepRow(tk.Frame):
+    def __init__(self, master, index: int, title: str, subtitle: str):
+        super().__init__(master, bg=COLORS["panel"])
+        self.index = index
+
+        self.canvas = tk.Canvas(
+            self, width=34, height=38, bg=COLORS["panel"],
+            highlightthickness=0, bd=0
+        )
+        self.canvas.pack(side="left", padx=(2, 10))
+        self.circle = self.canvas.create_oval(
+            4, 5, 28, 29, fill=COLORS["panel_2"], outline=COLORS["border"], width=2
+        )
+        self.number = self.canvas.create_text(
+            16, 17, text=str(index), fill=COLORS["muted"],
+            font=("Segoe UI", 9, "bold")
+        )
+
+        text = tk.Frame(self, bg=COLORS["panel"])
+        text.pack(side="left", fill="x", expand=True)
+        self.title = tk.Label(
+            text, text=title, anchor="w", bg=COLORS["panel"],
+            fg=COLORS["text"], font=("Segoe UI", 10, "bold")
+        )
+        self.title.pack(fill="x")
+        self.subtitle = tk.Label(
+            text, text=subtitle, anchor="w", bg=COLORS["panel"],
+            fg=COLORS["muted_2"], font=("Segoe UI", 8)
+        )
+        self.subtitle.pack(fill="x", pady=(1, 0))
+
+        self.status = tk.Label(
+            self, text="", bg=COLORS["panel"], fg=COLORS["muted"],
+            font=("Segoe UI", 8, "bold")
+        )
+        self.status.pack(side="right", padx=(10, 3))
+
+    def set_state(self, state: str):
+        if state == "done":
+            self.canvas.itemconfigure(self.circle, fill=COLORS["success_soft"], outline=COLORS["success"])
+            self.canvas.itemconfigure(self.number, text="✓", fill=COLORS["success"])
+            self.status.configure(text="TERMINÉ", fg=COLORS["success"])
+        elif state == "active":
+            self.canvas.itemconfigure(self.circle, fill=COLORS["accent_soft"], outline=COLORS["accent"])
+            self.canvas.itemconfigure(self.number, text=str(self.index), fill=COLORS["white"])
+            self.status.configure(text="EN COURS", fg=COLORS["accent"])
+        elif state == "error":
+            self.canvas.itemconfigure(self.circle, fill=COLORS["error_soft"], outline=COLORS["error"])
+            self.canvas.itemconfigure(self.number, text="!", fill=COLORS["error"])
+            self.status.configure(text="ERREUR", fg=COLORS["error"])
+        else:
+            self.canvas.itemconfigure(self.circle, fill=COLORS["panel_2"], outline=COLORS["border"])
+            self.canvas.itemconfigure(self.number, text=str(self.index), fill=COLORS["muted"])
+            self.status.configure(text="", fg=COLORS["muted"])
+
+
+class AutoReelGUI(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title(f"{APP_TITLE} {APP_VERSION}")
+        self.geometry("1180x790")
+        self.minsize(1040, 720)
+        self.configure(bg=COLORS["bg"])
+
+        self.queue: queue.Queue[tuple[str, object]] = queue.Queue()
+        self.process: subprocess.Popen | None = None
+        self.running = False
+        self.cancel_requested = False
+        self.active_module: str | None = None
+        self.error_module: str | None = None
+        self.model_total_bytes: int | None = None
+        self.model_monitor_requested = False
+
+        self.video_var = tk.StringVar()
+        self.project_var = tk.StringVar(value=self._detect_default_project())
+        self.model_var = tk.StringVar(value="small")
+        self.language_var = tk.StringVar(value="fr")
+        self.fps_var = tk.StringVar(value="60000/1001")
+        self.overall_var = tk.DoubleVar(value=0)
+        self.progress_text_var = tk.StringVar(value="Prêt")
+        self.progress_percent_var = tk.StringVar(value="0 %")
+        self.settings_visible = False
+        self.logs_visible = False
+
+        self._configure_ttk()
+        self._build_ui()
+        self._load_current_project()
+        self.refresh_ui()
+
+        self.after(150, self._poll_queue)
+        self.after(1000, self._tick_progress_monitor)
+
+    @property
+    def python_exe(self) -> Path:
+        return VENV_PYTHON if VENV_PYTHON.is_file() else Path(sys.executable)
+
+    @property
+    def project_name(self) -> str:
+        return sanitize_project_name(self.project_var.get())
+
+    @property
+    def project_dir(self) -> Path:
+        return PROJECTS_DIR / self.project_name
+
+    def _configure_ttk(self):
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+        style.configure(
+            "Auto.Horizontal.TProgressbar",
+            troughcolor=COLORS["panel_2"],
+            background=COLORS["accent"],
+            bordercolor=COLORS["panel_2"],
+            lightcolor=COLORS["accent"],
+            darkcolor=COLORS["accent"],
+            thickness=9,
+        )
+        style.configure(
+            "Auto.TCombobox",
+            fieldbackground=COLORS["panel_2"],
+            background=COLORS["panel_2"],
+            foreground=COLORS["text"],
+            arrowcolor=COLORS["muted"],
+            bordercolor=COLORS["border"],
+            lightcolor=COLORS["border"],
+            darkcolor=COLORS["border"],
+        )
+
+    def _detect_default_project(self) -> str:
+        PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+        preferred = PROJECTS_DIR / "anemie"
+        if preferred.is_dir():
+            return "anemie"
+
+        dirs = [p for p in PROJECTS_DIR.iterdir() if p.is_dir()]
+        if dirs:
+            dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            return dirs[0].name
+        return "projet"
+
+    def _load_current_project(self):
+        source = self.project_dir / "source.json"
+        if source.is_file():
+            data = read_json(source)
+            media = find_existing_media(data)
+            if media:
+                self.video_var.set(media)
+
+    def _build_ui(self):
+        # ---------- Header ----------
+        header = tk.Frame(self, bg=COLORS["bg"])
+        header.pack(fill="x", padx=28, pady=(22, 10))
+
+        brand = tk.Frame(header, bg=COLORS["bg"])
+        brand.pack(side="left")
+
+        logo = tk.Canvas(brand, width=44, height=44, bg=COLORS["bg"], highlightthickness=0)
+        logo.pack(side="left", padx=(0, 12))
+        logo.create_rectangle(2, 2, 42, 42, fill=COLORS["accent"], outline="")
+        logo.create_text(22, 22, text="AR", fill="white", font=("Segoe UI", 13, "bold"))
+
+        brand_text = tk.Frame(brand, bg=COLORS["bg"])
+        brand_text.pack(side="left")
+        tk.Label(
+            brand_text, text="AutoReel", bg=COLORS["bg"], fg=COLORS["text"],
+            font=("Segoe UI", 21, "bold")
+        ).pack(anchor="w")
+        tk.Label(
+            brand_text, text="Montage automatique pour TikTok & Reels",
+            bg=COLORS["bg"], fg=COLORS["muted"], font=("Segoe UI", 9)
+        ).pack(anchor="w")
+
+        meta = tk.Label(
+            header, text="DaVinci Resolve 21  •  1080 × 1920  •  9:16",
+            bg=COLORS["bg"], fg=COLORS["muted_2"], font=("Segoe UI", 9)
+        )
+        meta.pack(side="right", pady=(8, 0))
+
+        # ---------- Main ----------
+        main = tk.Frame(self, bg=COLORS["bg"])
+        main.pack(fill="both", expand=True, padx=28, pady=(8, 22))
+        main.grid_columnconfigure(0, weight=5)
+        main.grid_columnconfigure(1, weight=4)
+        main.grid_rowconfigure(0, weight=1)
+
+        # Left card
+        left = tk.Frame(
+            main, bg=COLORS["panel"],
+            highlightbackground=COLORS["border"], highlightthickness=1
+        )
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+
+        inner = tk.Frame(left, bg=COLORS["panel"])
+        inner.pack(fill="both", expand=True, padx=24, pady=22)
+
+        tk.Label(
+            inner, text="Votre vidéo", bg=COLORS["panel"], fg=COLORS["text"],
+            font=("Segoe UI", 14, "bold")
+        ).pack(anchor="w")
+        tk.Label(
+            inner,
+            text="Choisissez la vidéo source. AutoReel reprend automatiquement un projet déjà commencé.",
+            bg=COLORS["panel"], fg=COLORS["muted"], font=("Segoe UI", 9),
+            justify="left", wraplength=590
+        ).pack(anchor="w", pady=(4, 16))
+
+        source_card = tk.Frame(
+            inner, bg=COLORS["panel_2"],
+            highlightbackground=COLORS["border"], highlightthickness=1
+        )
+        source_card.pack(fill="x")
+
+        video_icon = tk.Canvas(
+            source_card, width=62, height=62, bg=COLORS["panel_2"],
+            highlightthickness=0
+        )
+        video_icon.pack(side="left", padx=14, pady=14)
+        video_icon.create_rectangle(9, 14, 53, 48, outline=COLORS["accent"], width=2)
+        video_icon.create_polygon(27, 23, 27, 39, 41, 31, fill=COLORS["accent"])
+
+        source_info = tk.Frame(source_card, bg=COLORS["panel_2"])
+        source_info.pack(side="left", fill="x", expand=True, pady=14)
+        self.video_name_label = tk.Label(
+            source_info, text="Aucune vidéo sélectionnée",
+            bg=COLORS["panel_2"], fg=COLORS["text"],
+            font=("Segoe UI", 10, "bold"), anchor="w"
+        )
+        self.video_name_label.pack(fill="x")
+        self.video_path_label = tk.Label(
+            source_info, text="",
+            bg=COLORS["panel_2"], fg=COLORS["muted_2"],
+            font=("Segoe UI", 8), anchor="w"
+        )
+        self.video_path_label.pack(fill="x", pady=(4, 0))
+
+        self.choose_btn = self._flat_button(
+            source_card, "Choisir…", self.choose_video,
+            small=True, bg=COLORS["panel_hover"], hover=COLORS["border"]
+        )
+        self.choose_btn.pack(side="right", padx=14)
+
+        form = tk.Frame(inner, bg=COLORS["panel"])
+        form.pack(fill="x", pady=(18, 0))
+
+        tk.Label(
+            form, text="Projet", bg=COLORS["panel"], fg=COLORS["muted"],
+            font=("Segoe UI", 8, "bold")
+        ).grid(row=0, column=0, sticky="w")
+        project_entry = tk.Entry(
+            form, textvariable=self.project_var,
+            bg=COLORS["panel_2"], fg=COLORS["text"],
+            insertbackground=COLORS["text"],
+            relief="flat", font=("Segoe UI", 10),
+            highlightbackground=COLORS["border"], highlightthickness=1
+        )
+        project_entry.grid(row=1, column=0, sticky="ew", ipady=8, pady=(5, 0))
+        project_entry.bind("<FocusOut>", self._project_changed)
+        project_entry.bind("<Return>", self._project_changed)
+        form.grid_columnconfigure(0, weight=1)
+
+        linkbar = tk.Frame(inner, bg=COLORS["panel"])
+        linkbar.pack(fill="x", pady=(14, 0))
+
+        self.settings_link = self._text_button(
+            linkbar, "⚙  Paramètres", self.toggle_settings
+        )
+        self.settings_link.pack(side="left")
+
+        self.folder_link = self._text_button(
+            linkbar, "Ouvrir le dossier", self.open_project_folder
+        )
+        self.folder_link.pack(side="left", padx=(16, 0))
+
+        self.logs_link = self._text_button(
+            linkbar, "Détails techniques", self.toggle_logs
+        )
+        self.logs_link.pack(side="right")
+
+        self.settings_frame = tk.Frame(
+            inner, bg=COLORS["panel_2"],
+            highlightbackground=COLORS["border"], highlightthickness=1
+        )
+
+        settings_inner = tk.Frame(self.settings_frame, bg=COLORS["panel_2"])
+        settings_inner.pack(fill="x", padx=14, pady=12)
+
+        self._setting_label(settings_inner, "TRANSCRIPTION", 0)
+        model = ttk.Combobox(
+            settings_inner, textvariable=self.model_var,
+            values=("tiny", "base", "small", "medium", "large-v3", "turbo"),
+            state="readonly", style="Auto.TCombobox", width=14
+        )
+        model.grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+        self._setting_label(settings_inner, "LANGUE", 1)
+        lang = ttk.Combobox(
+            settings_inner, textvariable=self.language_var,
+            values=("fr", "en", "de", "it"), state="readonly",
+            style="Auto.TCombobox", width=8
+        )
+        lang.grid(row=1, column=1, sticky="w", padx=(18, 0), pady=(4, 0))
+
+        self._setting_label(settings_inner, "FPS DAVINCI", 2)
+        fps = tk.Entry(
+            settings_inner, textvariable=self.fps_var, width=13,
+            bg=COLORS["panel"], fg=COLORS["text"], insertbackground=COLORS["text"],
+            relief="flat", font=("Segoe UI", 9),
+            highlightbackground=COLORS["border"], highlightthickness=1
+        )
+        fps.grid(row=1, column=2, sticky="w", padx=(18, 0), pady=(4, 0), ipady=4)
+
+        tk.Label(
+            self.settings_frame,
+            text="Réglages recommandés : Whisper small • français • 59,94 fps",
+            bg=COLORS["panel_2"], fg=COLORS["muted_2"], font=("Segoe UI", 8)
+        ).pack(anchor="w", padx=14, pady=(0, 12))
+
+        # Logs drawer
+        self.logs_frame = tk.Frame(
+            inner, bg="#080D18",
+            highlightbackground=COLORS["border"], highlightthickness=1
+        )
+        self.log_text = tk.Text(
+            self.logs_frame, height=12, wrap="word",
+            bg="#080D18", fg="#CBD5E1", insertbackground="white",
+            relief="flat", font=("Consolas", 8), padx=10, pady=9
+        )
+        self.log_text.pack(fill="both", expand=True)
+        self._append_log("AutoReel prêt.\n")
+
+        # Right card
+        right = tk.Frame(
+            main, bg=COLORS["panel"],
+            highlightbackground=COLORS["border"], highlightthickness=1
+        )
+        right.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+
+        rinner = tk.Frame(right, bg=COLORS["panel"])
+        rinner.pack(fill="both", expand=True, padx=24, pady=22)
+
+        top = tk.Frame(rinner, bg=COLORS["panel"])
+        top.pack(fill="x")
+        tk.Label(
+            top, text="Montage", bg=COLORS["panel"], fg=COLORS["text"],
+            font=("Segoe UI", 14, "bold")
+        ).pack(side="left")
+        self.percent_badge = tk.Label(
+            top, text="0 %",
+            bg=COLORS["accent_soft"], fg=COLORS["accent"],
+            font=("Segoe UI", 9, "bold"), padx=10, pady=4
+        )
+        self.percent_badge.pack(side="right")
+
+        tk.Label(
+            rinner, textvariable=self.progress_text_var,
+            bg=COLORS["panel"], fg=COLORS["muted"],
+            font=("Segoe UI", 9), anchor="w"
+        ).pack(fill="x", pady=(5, 10))
+
+        self.progress = ttk.Progressbar(
+            rinner, variable=self.overall_var,
+            maximum=100, style="Auto.Horizontal.TProgressbar"
+        )
+        self.progress.pack(fill="x", pady=(0, 16))
+
+        self.steps_frame = tk.Frame(rinner, bg=COLORS["panel"])
+        self.steps_frame.pack(fill="both", expand=True)
+        self.macro_rows = {}
+        for i, (key, title, subtitle, _mods) in enumerate(MACRO_STEPS, start=1):
+            row = MacroStepRow(self.steps_frame, i, title, subtitle)
+            row.pack(fill="x", pady=4)
+            self.macro_rows[key] = row
+
+        cta_area = tk.Frame(rinner, bg=COLORS["panel"])
+        cta_area.pack(fill="x", pady=(14, 0))
+
+        self.cta = tk.Button(
+            cta_area,
+            text="Créer mon montage",
+            command=self.primary_action,
+            bg=COLORS["accent"], fg=COLORS["white"],
+            activebackground=COLORS["accent_hover"], activeforeground=COLORS["white"],
+            relief="flat", bd=0, cursor="hand2",
+            font=("Segoe UI", 11, "bold"),
+            padx=18, pady=12
+        )
+        self.cta.pack(fill="x")
+
+        self.cta_hint = tk.Label(
+            cta_area, text="",
+            bg=COLORS["panel"], fg=COLORS["muted_2"],
+            font=("Segoe UI", 8), justify="center"
+        )
+        self.cta_hint.pack(fill="x", pady=(7, 0))
+
+    def _setting_label(self, master, text, column):
+        tk.Label(
+            master, text=text, bg=COLORS["panel_2"], fg=COLORS["muted_2"],
+            font=("Segoe UI", 7, "bold")
+        ).grid(row=0, column=column, sticky="w", padx=((18 if column else 0), 0))
+
+    def _flat_button(self, master, text, command, *, small=False, bg=None, hover=None):
+        bg = bg or COLORS["accent"]
+        hover = hover or COLORS["accent_hover"]
+        button = tk.Button(
+            master, text=text, command=command,
+            bg=bg, fg=COLORS["text"],
+            activebackground=hover, activeforeground=COLORS["text"],
+            relief="flat", bd=0, cursor="hand2",
+            font=("Segoe UI", 8 if small else 10, "bold"),
+            padx=11 if small else 16, pady=6 if small else 9
+        )
+        button.bind("<Enter>", lambda _e: button.configure(bg=hover))
+        button.bind("<Leave>", lambda _e: button.configure(bg=bg))
+        return button
+
+    def _text_button(self, master, text, command):
+        button = tk.Button(
+            master, text=text, command=command,
+            bg=COLORS["panel"], fg=COLORS["muted"],
+            activebackground=COLORS["panel"], activeforeground=COLORS["text"],
+            relief="flat", bd=0, cursor="hand2",
+            font=("Segoe UI", 8), padx=0, pady=0
+        )
+        button.bind("<Enter>", lambda _e: button.configure(fg=COLORS["text"]))
+        button.bind("<Leave>", lambda _e: button.configure(fg=COLORS["muted"]))
+        return button
+
+    def choose_video(self):
+        path = filedialog.askopenfilename(
+            title="Choisir la vidéo source",
+            filetypes=[
+                ("Vidéos", "*.mp4 *.mov *.m4v *.mkv *.avi *.webm"),
+                ("Tous les fichiers", "*.*"),
+            ],
+        )
+        if not path:
+            return
+
+        self.video_var.set(path)
+        current_source = self.project_dir / "source.json"
+        if not current_source.exists() and self.project_name == "projet":
+            self.project_var.set(sanitize_project_name(Path(path).stem))
+        self.refresh_ui()
+
+    def _project_changed(self, _event=None):
+        self.project_var.set(self.project_name)
+        self._load_current_project()
+        self.refresh_ui()
+
+    def toggle_settings(self):
+        self.settings_visible = not self.settings_visible
+        if self.settings_visible:
+            self.settings_frame.pack(fill="x", pady=(12, 0))
+            self.settings_link.configure(text="⚙  Masquer les paramètres")
+        else:
+            self.settings_frame.pack_forget()
+            self.settings_link.configure(text="⚙  Paramètres")
+
+    def toggle_logs(self):
+        self.logs_visible = not self.logs_visible
+        if self.logs_visible:
+            self.logs_frame.pack(fill="both", expand=True, pady=(12, 0))
+            self.logs_link.configure(text="Masquer les détails")
+        else:
+            self.logs_frame.pack_forget()
+            self.logs_link.configure(text="Détails techniques")
+
+    def _show_logs(self):
+        if not self.logs_visible:
+            self.toggle_logs()
+
+    def _append_log(self, value: str):
+        self.log_text.insert("end", value)
+        self.log_text.see("end")
+
+    def module_complete(self, module: str) -> bool:
+        if module == "M11":
+            return self.find_m11_report() is not None
+        names = MODULE_ARTIFACTS.get(module, ())
+        return bool(names) and all((self.project_dir / name).is_file() for name in names)
+
+    def completed_modules(self) -> set[str]:
+        return {m for m in PIPELINE_ORDER if self.module_complete(m)}
+
+    def find_m11_report(self) -> Path | None:
+        if not self.project_dir.exists():
+            return None
+        reports = list(self.project_dir.glob("m11_resolve_build*/m11_prepare_report.json"))
+        if not reports:
+            return None
+        reports.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return reports[0]
+
+    def refresh_ui(self):
+        source_path = self.video_var.get().strip()
+        if source_path:
+            p = Path(source_path)
+            self.video_name_label.configure(text=p.name)
+            parent = str(p.parent)
+            if len(parent) > 68:
+                parent = "…" + parent[-67:]
+            self.video_path_label.configure(text=parent)
+        else:
+            self.video_name_label.configure(text="Aucune vidéo sélectionnée")
+            self.video_path_label.configure(text="Choisissez un fichier MP4 ou MOV")
+
+        completed = self.completed_modules()
+
+        for key, _title, _subtitle, modules in MACRO_STEPS:
+            row = self.macro_rows[key]
+            if self.error_module and self.error_module in modules:
+                row.set_state("error")
+            elif self.active_module and self.active_module in modules:
+                row.set_state("active")
+            elif all((m in completed) if m != "M11" else self.module_complete("M11") for m in modules):
+                row.set_state("done")
+            else:
+                row.set_state("pending")
+
+        if self.active_module == "M1":
+            # M1 download percentage may override this in monitor.
+            pass
+        else:
+            done = len(completed)
+            percent = int(round(100 * done / len(PIPELINE_ORDER)))
+            self.overall_var.set(percent)
+            self.percent_badge.configure(text=f"{percent} %")
+
+        self._refresh_cta()
+
+    def _refresh_cta(self):
+        if self.running:
+            self.cta.configure(
+                text="Arrêter",
+                bg=COLORS["error_soft"],
+                activebackground="#512330",
+                fg=COLORS["error"],
+                command=self.cancel,
+                state="normal",
+            )
+            self.cta_hint.configure(text="Le module en cours sera interrompu.")
+            return
+
+        self.cta.configure(
+            bg=COLORS["accent"], activebackground=COLORS["accent_hover"],
+            fg=COLORS["white"], command=self.primary_action, state="normal"
+        )
+
+        if self.module_complete("M11"):
+            self.cta.configure(text="Copier la commande DaVinci")
+            self.cta_hint.configure(text="Puis : DaVinci Resolve > Workspace > Console > Lua")
+        elif self.module_complete("M10F"):
+            self.cta.configure(text="Préparer pour DaVinci Resolve")
+            self.cta_hint.configure(text="Crée le script de construction sans modifier votre projet actuel.")
+        elif self.module_complete("M0"):
+            self.cta.configure(text="Continuer le montage")
+            next_module = next((m for m in PIPELINE_ORDER if not self.module_complete(m)), None)
+            if next_module:
+                self.cta_hint.configure(text=f"Prochaine étape : {MODULE_LABELS[next_module]}")
+            else:
+                self.cta_hint.configure(text="")
+        else:
+            self.cta.configure(text="Créer mon montage")
+            self.cta_hint.configure(text="AutoReel analysera la vidéo puis exécutera les étapes automatiquement.")
+
+    def primary_action(self):
+        if self.running:
+            self.cancel()
+            return
+
+        if self.module_complete("M11"):
+            self.copy_resolve_command()
+            return
+
+        if self.module_complete("M10F"):
+            self.run_m11_prepare()
+            return
+
+        self.run_pipeline()
+
+    def _ensure_project(self) -> bool:
+        self.project_var.set(self.project_name)
+        PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+        ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        self.project_dir.mkdir(parents=True, exist_ok=True)
+
+        if not self.module_complete("M0"):
+            source = self.video_var.get().strip()
+            if not source or not Path(source).is_file():
+                self.choose_video()
+                source = self.video_var.get().strip()
+                if not source or not Path(source).is_file():
+                    return False
+        return True
+
+    def _preflight_dependencies(self) -> list[list[str]]:
+        code = "import jsonschema, faster_whisper, cv2, numpy"
+        check = subprocess.run(
+            [str(self.python_exe), "-c", code],
+            cwd=ROOT, capture_output=True, text=True
+        )
+        if check.returncode == 0:
+            return []
+
+        ok = messagebox.askyesno(
+            APP_TITLE,
+            "Il manque un ou plusieurs composants gratuits nécessaires "
+            "(Whisper / OpenCV).\n\nLes installer automatiquement maintenant ?"
+        )
+        if not ok:
+            return []
+        return [[
+            str(self.python_exe), "-m", "pip", "install",
+            "-e", ".[transcription,autocam]"
+        ]]
+
+    def build_pipeline_commands(self):
+        p = self.project_dir
+        py = str(self.python_exe)
+        source_video = self.video_var.get().strip()
+
+        commands = []
+
+        if not self.module_complete("M0"):
+            commands.append(("M0", [
+                py, "-m", "modules.m0_ingest",
+                source_video,
+                str(p / "source.json"),
+            ]))
+
+        if not self.module_complete("M1"):
+            commands.append(("M1", [
+                py, "-m", "modules.m1_transcription",
+                str(p / "source.json"),
+                str(p / "transcript.json"),
+                "--model", self.model_var.get().strip(),
+                "--language", self.language_var.get().strip(),
+                "--allow-model-download",
+            ]))
+
+        if not self.module_complete("M2"):
+            commands.append(("M2", [
+                py, "-m", "modules.m2_speechcut",
+                str(p / "transcript.json"),
+                str(p / "cuts.json"),
+                str(p / "time_map_speechcut.json"),
+            ]))
+
+        if not self.module_complete("M3"):
+            commands.append(("M3", [
+                py, "-m", "modules.m3_smartedit",
+                str(p / "transcript.json"),
+                str(p / "cuts.json"),
+                str(p / "time_map_speechcut.json"),
+                str(p / "edit_plan.json"),
+                str(p / "time_map_smartedit.json"),
+            ]))
+
+        if not self.module_complete("M4"):
+            commands.append(("M4", [
+                py, "-m", "modules.m4_autocam",
+                str(p / "source.json"),
+                str(p / "time_map_smartedit.json"),
+                str(p / "camera_plan.json"),
+                "--device", "auto",
+            ]))
+
+        if not self.module_complete("M5"):
+            commands.append(("M5", [
+                py, "-m", "modules.m5_visual_planner",
+                str(p / "edit_plan.json"),
+                str(p / "transcript.json"),
+                str(p / "time_map_smartedit.json"),
+                str(p / "visual_plan.json"),
+                "--camera-plan", str(p / "camera_plan.json"),
+            ]))
+
+        if not self.module_complete("M7"):
+            commands.append(("M7", [
+                py, "-m", "modules.m7_sounddesign",
+                str(p / "transcript.json"),
+                str(p / "edit_plan.json"),
+                str(p / "visual_plan.json"),
+                str(p / "camera_plan.json"),
+                str(p / "time_map_smartedit.json"),
+                str(p / "sound_plan.json"),
+            ]))
+
+        if not self.module_complete("M8"):
+            commands.append(("M8", [
+                py, "-m", "modules.m8_music",
+                str(p / "transcript.json"),
+                str(p / "edit_plan.json"),
+                str(p / "time_map_smartedit.json"),
+                str(p / "visual_plan.json"),
+                str(p / "sound_plan.json"),
+                str(p / "music_plan.json"),
+            ]))
+
+        if not self.module_complete("M6"):
+            commands.append(("M6", [
+                py, "-m", "modules.m6_asset_manager",
+                str(p / "visual_plan.json"),
+                str(p / "sound_plan.json"),
+                str(p / "music_plan.json"),
+                str(ASSETS_DIR),
+                str(p / "assets_manifest.json"),
+                "--project-root", str(ROOT),
+            ]))
+
+        if not self.module_complete("M10A"):
+            commands.append(("M10A", [
+                py, "-m", "modules.m10_timeline_compiler",
+                str(p / "source.json"),
+                str(p / "time_map_smartedit.json"),
+                str(p / "edit_plan.json"),
+                str(p / "camera_plan.json"),
+                str(p / "visual_plan.json"),
+                str(p / "sound_plan.json"),
+                str(p / "music_plan.json"),
+                str(p / "assets_manifest.json"),
+                str(p / "timeline_draft.json"),
+            ]))
+
+        if not self.module_complete("M9"):
+            commands.append(("M9", [
+                py, "-m", "modules.m9_captions",
+                str(p / "transcript.json"),
+                str(p / "timeline_draft.json"),
+                str(p / "captions.json"),
+            ]))
+
+        if not self.module_complete("M10F"):
+            commands.append(("M10F", [
+                py, "-m", "modules.m10_timeline_compiler.final_cli",
+                str(p / "timeline_draft.json"),
+                str(p / "captions.json"),
+                str(p / "timeline.json"),
+            ]))
+
+        return commands
+
+    def run_pipeline(self):
+        if not self._ensure_project():
+            return
+
+        install_commands = self._preflight_dependencies()
+        commands = self.build_pipeline_commands()
+
+        if not commands:
+            self.refresh_ui()
+            return
+
+        self.cancel_requested = False
+        self.error_module = None
+        self.running = True
+        self.progress_text_var.set("Préparation du montage…")
+        self._refresh_cta()
+
+        def worker():
+            try:
+                for install in install_commands:
+                    self.queue.put(("log", "\n[Préparation] Installation des composants gratuits…\n"))
+                    self._run_subprocess(install, "SETUP")
+
+                for module, command in commands:
+                    if self.cancel_requested:
+                        raise InterruptedError("Opération interrompue.")
+                    self.queue.put(("stage_start", module))
+                    self._run_subprocess(command, module)
+                    self.queue.put(("stage_done", module))
+
+                self.queue.put(("pipeline_done", None))
+            except InterruptedError as exc:
+                self.queue.put(("cancelled", str(exc)))
+            except Exception as exc:
+                self.queue.put(("error", (self.active_module, str(exc))))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _run_subprocess(self, command, module):
+        env = os.environ.copy()
+        env.setdefault("HF_HUB_DISABLE_XET", "1")
+        env.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "120")
+        env.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
+        creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        self.queue.put(("log", "\n> " + subprocess.list2cmdline(command) + "\n"))
+
+        proc = subprocess.Popen(
+            command,
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+            env=env,
+            creationflags=creationflags,
+        )
+        self.process = proc
+
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            self.queue.put(("log", line))
+            if self.cancel_requested:
+                break
+
+        if self.cancel_requested and proc.poll() is None:
+            proc.terminate()
+
+        code = proc.wait()
+        self.process = None
+
+        if self.cancel_requested:
+            raise InterruptedError("Opération interrompue.")
+        if code != 0:
+            raise RuntimeError(f"{MODULE_LABELS.get(module, module)} a échoué (code {code}).")
+
+    def run_m11_prepare(self):
+        timeline = self.project_dir / "timeline.json"
+        if not timeline.is_file():
+            messagebox.showwarning(APP_TITLE, "La timeline finale n'est pas encore prête.")
+            return
+
+        prepare_module = ROOT / "modules" / "m11_resolve_builder" / "prepare.py"
+        if not prepare_module.is_file():
+            messagebox.showerror(
+                APP_TITLE,
+                "M11 Resolve Builder n'est pas installé dans modules\\m11_resolve_builder."
+            )
+            return
+
+        self.running = True
+        self.cancel_requested = False
+        self.error_module = None
+        self.active_module = "M11"
+        self.progress_text_var.set(MODULE_LABELS["M11"])
+        self.refresh_ui()
+
+        command = [
+            str(self.python_exe), "-m", "modules.m11_resolve_builder.prepare",
+            "--timeline", str(timeline),
+            "--fps", self.fps_var.get().strip(),
+            "--timeline-name", f"AutoReel_{self.project_name}",
+        ]
+
+        def worker():
+            try:
+                self._run_subprocess(command, "M11")
+                self.queue.put(("m11_done", None))
+            except InterruptedError as exc:
+                self.queue.put(("cancelled", str(exc)))
+            except Exception as exc:
+                self.queue.put(("error", ("M11", str(exc))))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def copy_resolve_command(self):
+        report_path = self.find_m11_report()
+        if report_path is None:
+            return
+        report = read_json(report_path) or {}
+        lua_path = report.get("lua_path")
+        if not lua_path:
+            candidates = list(report_path.parent.glob("autoreel_m11_build.lua"))
+            lua_path = str(candidates[0]) if candidates else None
+        if not lua_path:
+            messagebox.showerror(APP_TITLE, "Le script Lua M11 est introuvable.")
+            return
+
+        command = f"dofile([[{lua_path}]])"
+        self.clipboard_clear()
+        self.clipboard_append(command)
+        self.update()
+
+        messagebox.showinfo(
+            APP_TITLE,
+            "Commande copiée.\n\n"
+            "Dans DaVinci Resolve :\n"
+            "Workspace > Console > Lua\n\n"
+            "Puis colle la commande et appuie sur Entrée."
+        )
+
+    def cancel(self):
+        self.cancel_requested = True
+        proc = self.process
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+            except OSError:
+                pass
+        self.progress_text_var.set("Arrêt en cours…")
+        self._append_log("\nArrêt demandé…\n")
+
+    def open_project_folder(self):
+        self.project_dir.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            os.startfile(self.project_dir)  # type: ignore[attr-defined]
+        else:
+            subprocess.Popen(["xdg-open", str(self.project_dir)])
+
+    def _poll_queue(self):
+        try:
+            while True:
+                kind, payload = self.queue.get_nowait()
+
+                if kind == "log":
+                    self._append_log(str(payload))
+
+                elif kind == "stage_start":
+                    self.active_module = str(payload)
+                    self.progress_text_var.set(MODULE_LABELS.get(self.active_module, self.active_module))
+                    if self.active_module == "M1":
+                        self._request_model_metadata()
+                    self.refresh_ui()
+
+                elif kind == "stage_done":
+                    module = str(payload)
+                    self.active_module = None
+                    self.progress_text_var.set(f"{MODULE_LABELS.get(module, module)} terminé")
+                    self.refresh_ui()
+
+                elif kind == "pipeline_done":
+                    self.running = False
+                    self.active_module = None
+                    self.progress_text_var.set("Montage préparé — prêt pour DaVinci Resolve")
+                    self.refresh_ui()
+
+                elif kind == "m11_done":
+                    self.running = False
+                    self.active_module = None
+                    self.progress_text_var.set("Prêt à envoyer dans DaVinci Resolve")
+                    self.refresh_ui()
+
+                elif kind == "cancelled":
+                    self.running = False
+                    self.active_module = None
+                    self.progress_text_var.set("Opération arrêtée")
+                    self.refresh_ui()
+
+                elif kind == "error":
+                    module, error = payload
+                    self.running = False
+                    self.error_module = module
+                    self.active_module = None
+                    self.progress_text_var.set("Une étape nécessite votre attention")
+                    self._append_log(f"\nERREUR : {error}\n")
+                    self._show_logs()
+                    self.refresh_ui()
+                    messagebox.showerror(APP_TITLE, str(error))
+
+        except queue.Empty:
+            pass
+        self.after(150, self._poll_queue)
+
+    def _request_model_metadata(self):
+        if self.model_monitor_requested or self.model_var.get() != "small":
+            return
+        self.model_monitor_requested = True
+
+        def worker():
+            try:
+                from huggingface_hub import hf_hub_url, get_hf_file_metadata
+                url = hf_hub_url(
+                    "Systran/faster-whisper-small",
+                    "model.bin",
+                    revision="536b0662742c02347bc0e980a01041f333bce120",
+                )
+                meta = get_hf_file_metadata(url, timeout=20)
+                if meta.size:
+                    self.model_total_bytes = int(meta.size)
+            except Exception:
+                self.model_total_bytes = None
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _find_recent_incomplete(self) -> Path | None:
+        base = ROOT / "models" / "faster-whisper"
+        if not base.exists():
+            return None
+        files = list(base.rglob("*.incomplete"))
+        if not files:
+            return None
+        files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return files[0]
+
+    def _tick_progress_monitor(self):
+        if self.running and self.active_module == "M1" and not self.module_complete("M1"):
+            incomplete = self._find_recent_incomplete()
+            if incomplete and self.model_total_bytes:
+                try:
+                    done = incomplete.stat().st_size
+                    pct = max(0.0, min(100.0, 100.0 * done / self.model_total_bytes))
+                    self.overall_var.set(pct)
+                    self.percent_badge.configure(text=f"{pct:.0f} %")
+                    self.progress_text_var.set(
+                        f"Téléchargement Whisper small — {pct:.1f} %"
+                    )
+                except OSError:
+                    pass
+            elif incomplete:
+                try:
+                    mb = incomplete.stat().st_size / 1024 / 1024
+                    self.progress_text_var.set(
+                        f"Téléchargement Whisper small — {mb:.0f} Mo reçus"
+                    )
+                except OSError:
+                    pass
+        self.after(1000, self._tick_progress_monitor)
+
+
+if __name__ == "__main__":
+    AutoReelGUI().mainloop()

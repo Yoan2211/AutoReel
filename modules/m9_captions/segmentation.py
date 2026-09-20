@@ -41,7 +41,7 @@ def segment(words, config):
 
 def text_and_lines(words, maximum_characters):
     text = "".join(item.text for item in words).strip()
-    if len(text) <= maximum_characters or len(words) == 1:
+    if len(text) <= maximum_characters:
         return text, [text]
     best = None
     for split in range(1, len(words)):

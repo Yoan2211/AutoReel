@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M11 Resolve Build Report 1.0.0",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "module",
+    "status",
+    "timeline_json_path",
+    "timeline_json_sha256",
+    "resolve",
+    "tracks",
+    "capabilities",
+    "unsupported_features",
+    "warnings",
+    "errors"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"const": "M11"},
+        "version": {"const": "1.0.0"}
+      }
+    },
+    "status": {"enum": ["SUCCESS", "PARTIAL", "FAILED"]},
+    "timeline_json_path": {"type": "string"},
+    "timeline_json_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "resolve": {"type": "object"},
+    "tracks": {
+      "type": "object",
+      "required": ["V1", "V2", "V3", "A1", "A2", "A3"],
+      "properties": {
+        "V1": {"$ref": "#/$defs/track_result"},
+        "V2": {"$ref": "#/$defs/track_result"},
+        "V3": {"$ref": "#/$defs/track_result"},
+        "A1": {"$ref": "#/$defs/track_result"},
+        "A2": {"$ref": "#/$defs/track_result"},
+        "A3": {"$ref": "#/$defs/track_result"}
+      }
+    },
+    "capabilities": {"type": "object"},
+    "unsupported_features": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string"}
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "errors": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "track_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested_events", "applied_events", "failed_events"],
+      "properties": {
+        "requested_events": {"type": "integer", "minimum": 0},
+        "applied_events": {"type": "integer", "minimum": 0},
+        "failed_events": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

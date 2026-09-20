@@ -22,12 +22,7 @@ def flatten_words(transcript: dict) -> list[Word]:
                 raise SpeechCutError("Words must be ordered in SOURCE time")
             token = normalize_token(raw["text"])
             if not token:
-                # M1 peut produire un token horodaté composé uniquement de ponctuation.
-                # Ce token n'apporte aucune information lexicale à SpeechCut : on l'ignore
-                # tout en conservant les contrôles d'ordre et d'unicité.
-                seen.add(raw["id"])
-                previous_start = raw["start_us"]
-                continue
+                raise SpeechCutError(f"Word has no lexical token: {raw['id']}")
             words.append(Word(raw["id"], raw["start_us"], raw["end_us"], raw["text"], token, segment["id"]))
             seen.add(raw["id"])
             previous_start = raw["start_us"]
