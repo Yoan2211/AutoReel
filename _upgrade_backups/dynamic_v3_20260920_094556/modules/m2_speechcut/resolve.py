@@ -3,7 +3,7 @@
 from .model import Candidate
 
 
-PRIORITY = {"PHRASE_RESTART": 40, "IMMEDIATE_REPETITION": 30, "FILLER": 20, "LONG_SILENCE": 10}
+PRIORITY = {"IMMEDIATE_REPETITION": 30, "FILLER": 20, "LONG_SILENCE": 10}
 
 
 def select_auto(candidates: list[Candidate]) -> tuple[list[Candidate], set[int]]:

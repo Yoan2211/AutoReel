@@ -126,7 +126,7 @@ def detect_phrase_restarts(words: list[Word], config: SpeechCutConfig) -> list[C
                     not any(word_id in occupied for word_id in ids)):
                 result.append(Candidate(
                     "PHRASE_RESTART", words[first].start_us, words[second - 1].end_us,
-                    "AUTO", "HIGH", f"Exact repeated phrase prefix of {length} words", ids,
+                    "REVIEW", "MEDIUM", f"Repeated phrase prefix of {length} words", ids,
                 ))
                 occupied.update(ids)
                 break

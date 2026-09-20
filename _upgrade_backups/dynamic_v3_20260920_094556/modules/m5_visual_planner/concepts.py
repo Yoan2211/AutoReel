@@ -9,14 +9,6 @@ GRAPHIC = frozenset({"chiffre", "chiffres", "pourcent", "pourcentage", "statisti
 PHOTO = frozenset({"photo", "portrait", "personne", "ville", "pays", "lieu", "monument", "produit", "objet"})
 BROLL = frozenset({"marche", "marcher", "court", "courir", "cuisine", "cuisiner", "travaille", "travailler", "voyage", "voyager", "écran", "téléphone", "ordinateur", "atelier", "route"})
 ILLUSTRATION = frozenset({"exemple", "imagine", "visualise", "concept", "mécanisme", "processus", "fonctionne", "architecture", "cycle"})
-MEDICAL_SYMPTOM = frozenset({
-    "fatigue", "fatigué", "fatiguée", "essoufflement", "essoufflé", "vertige", "vertiges",
-    "palpitation", "palpitations", "pâle", "pale", "peau", "muqueuse", "muqueuses",
-})
-MEDICAL_EXPLAIN = frozenset({
-    "anémie", "anemie", "sang", "hémoglobine", "hemoglobine", "oxygène", "oxygene",
-    "globule", "globules", "fer", "carence", "prise", "dosage",
-})
 
 
 def tokens(text):
@@ -34,10 +26,6 @@ def detect(passage, section_id, section_terms, window, role_names):
         media_type, score, signal = "ICON_GRAPHIC", .9 if numeric else .82, "numeric or structured information"
     elif word_set & BROLL:
         media_type, score, signal = "BROLL", .83, "concrete action or environment"
-    elif word_set & MEDICAL_SYMPTOM:
-        media_type, score, signal = "PHOTO", .88, "explicit medical symptom suited to a visual cutaway"
-    elif word_set & MEDICAL_EXPLAIN:
-        media_type, score, signal = "ILLUSTRATION", .90, "medical mechanism or diagnostic concept"
     elif word_set & PHOTO:
         media_type, score, signal = "PHOTO", .8, "specific person, place or object"
     elif word_set & ILLUSTRATION:

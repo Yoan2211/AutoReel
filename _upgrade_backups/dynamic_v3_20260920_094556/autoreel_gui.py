@@ -786,7 +786,6 @@ class AutoReelGUI(tk.Tk):
                 str(p / "time_map_speechcut.json"),
                 str(p / "edit_plan.json"),
                 str(p / "time_map_smartedit.json"),
-                "--auto-remove-exact-duplicates",
             ]))
 
         if not self.module_complete("M4"):
@@ -986,9 +985,6 @@ class AutoReelGUI(tk.Tk):
         def worker():
             try:
                 self._run_subprocess(command, "M11")
-                enhancer = ROOT / "tools" / "m11_dynamic_postprocess.py"
-                if enhancer.is_file():
-                    self._run_subprocess([str(self.python_exe), str(enhancer), str(self.project_dir)], "M11")
                 self.queue.put(("m11_done", None))
             except InterruptedError as exc:
                 self.queue.put(("cancelled", str(exc)))

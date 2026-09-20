@@ -22,10 +22,8 @@ def smartedit(transcript_path: str | Path, cuts_path: str | Path,
     transcript, cuts, speech_map, transcript_hash, cuts_hash, speech_map_hash = load_inputs(*inputs)
     passages = build_passages(transcript, speech_map["mappings"])
     edit_decisions = decisions(passages, config)
-    auto_removals = sorted(set(
-        (item["source_start_us"], item["source_end_us"])
-        for item in edit_decisions if item["disposition"] == "AUTO_REMOVE"
-    ))
+    auto_removals = [(item["source_start_us"], item["source_end_us"])
+                     for item in edit_decisions if item["disposition"] == "AUTO_REMOVE"]
     mappings, duration = rebuild(speech_map["mappings"], auto_removals)
     source = {
         "transcript_path": str(inputs[0]), "transcript_sha256": transcript_hash,

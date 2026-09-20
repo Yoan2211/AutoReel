@@ -5,11 +5,6 @@ from .model import Passage
 from .text import CTA_PHRASES, CONCLUSION_MARKERS, INTRO_MARKERS, contains_any, normalize, similarity
 
 
-def _semantic_auto_remove(left: Passage, right: Passage, score: float) -> bool:
-    # Auto-remove only very strong nearby retakes; ambiguous matches stay REVIEW.
-    return score >= 0.82 and abs(right.source_start_us - left.source_start_us) <= 20_000_000
-
-
 def roles(passages: list[Passage]) -> list[dict]:
     if not passages:
         return []
@@ -90,11 +85,9 @@ def decisions(passages: list[Passage], config: SmartEditConfig) -> list[dict]:
                 continue
             preferred, weaker = (right, left) if right.strength > left.strength else (left, right)
             margin = abs(preferred.strength - weaker.strength)
-            auto_remove = _semantic_auto_remove(left, right, score)
             result.append({
                 "id": f"decision{len(result):06d}", "kind": "SEMANTIC_REPETITION",
-                "disposition": "AUTO_REMOVE" if auto_remove else "REVIEW",
-                "confidence": "HIGH" if auto_remove else "MEDIUM",
+                "disposition": "REVIEW", "confidence": "MEDIUM",
                 "source_start_us": weaker.source_start_us, "source_end_us": weaker.source_end_us,
                 "passage_ids": [left.id, right.id], "preferred_passage_id": preferred.id,
                 "similarity": round(score, 6),

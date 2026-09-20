@@ -1,21 +1,21 @@
-CORRECTIF M2 — token de ponctuation
-===================================
+AutoReel M11 VIDEO FIX
 
-Le bug:
-M1 peut produire un mot horodaté qui contient uniquement de la ponctuation.
-Le contrat M1 l'autorise, mais M2 refusait tout token sans caractère lexical.
+But
+---
+Le M11 actuel réutilise le MP4 original dans Resolve.
+Si Resolve Free sous Windows ne décode que l'audio de cette source,
+A1 est créée mais V1 échoue.
 
-Le correctif:
-M2 ignore uniquement ces tokens de ponctuation pour ses heuristiques lexicales.
-Les contrôles de chronologie et d'identifiants restent actifs.
+Ce correctif:
+1. trouve automatiquement le autoreel_m11_build.lua du projet;
+2. trouve le fichier source réellement référencé par M11;
+3. crée un média de travail DNxHR HQX 10 bits + PCM 48 kHz;
+4. conserve autant que possible les métadonnées colorimétriques;
+5. laisse l'original intact;
+6. crée autoreel_m11_build_VIDEO_FIX.lua qui pointe vers le média compatible;
+7. affiche la commande dofile à lancer dans Resolve.
 
-Installation:
-1. Extraire les fichiers à la racine de AutoReel:
-   C:\Users\yoana\Documents\ChatGPT\AutoReel
-2. Double-cliquer sur APPLIQUER_FIX_M2.bat
-3. Retourner dans AutoReel GUI.
-4. Cliquer sur « Continuer le montage ».
-
-Le script crée automatiquement:
-modules\m2_speechcut\analyze.py.before_punctuation_fix
-avant modification.
+Installation
+------------
+Copier ces fichiers à la racine AutoReel puis lancer:
+AutoReel_M11_VIDEO_FIX.bat

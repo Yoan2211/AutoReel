@@ -5,13 +5,13 @@ from dataclasses import asdict, dataclass
 
 @dataclass(frozen=True)
 class SpeechCutConfig:
-    long_silence_us: int = 800_000
-    review_pause_us: int = 560_000
-    retained_pause_us: int = 240_000
-    filler_padding_us: int = 25_000
+    long_silence_us: int = 1_200_000
+    review_pause_us: int = 850_000
+    retained_pause_us: int = 420_000
+    filler_padding_us: int = 35_000
     filler_max_duration_us: int = 900_000
-    repetition_max_gap_us: int = 600_000
-    phrase_restart_max_gap_us: int = 1_200_000
+    repetition_max_gap_us: int = 450_000
+    phrase_restart_max_gap_us: int = 900_000
     phrase_restart_min_words: int = 2
     phrase_restart_max_words: int = 6
     false_start_max_words: int = 4

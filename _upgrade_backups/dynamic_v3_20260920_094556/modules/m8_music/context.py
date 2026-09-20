@@ -3,11 +3,7 @@ import unicodedata
 
 
 MOODS = (
-    ("clean_modern_medical", {
-        "santé", "medical", "médical", "médecin", "patient", "soin", "science",
-        "anémie", "anemie", "sang", "hémoglobine", "hemoglobine", "oxygène", "oxygene",
-        "fatigue", "essoufflement", "vertige", "vertiges", "palpitations", "fer",
-    }),
+    ("clean_modern_medical", {"santé", "medical", "médical", "médecin", "patient", "soin", "science"}),
     ("clean_modern_technology", {"technologie", "tech", "donnée", "données", "logiciel", "intelligence", "numérique"}),
     ("clean_modern_business", {"vente", "ventes", "entreprise", "client", "marché", "business", "stratégie"}),
     ("warm_minimal_story", {"histoire", "souvenir", "émotion", "famille", "parcours", "récit"}),

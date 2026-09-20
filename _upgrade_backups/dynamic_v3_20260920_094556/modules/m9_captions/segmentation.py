@@ -6,12 +6,6 @@ SMALL_WORD = re.compile(r"^[\W_]*(?:à|a|de|du|le|la|les|un|une|et|ou|en|y)[\W_]
 
 
 def _should_break(group, current, following, config):
-    # Ne pas couper "peut" + "-être" ni "d" + "'habitude".
-    if following is not None:
-        next_text = following.text.lstrip()
-        current_text = current.text.rstrip()
-        if next_text.startswith(("-", "'", "’")) or current_text.endswith(("-", "'", "’")):
-            return False
     if len(group) >= config.maximum_words:
         return True
     if STRONG_END.search(current.text):

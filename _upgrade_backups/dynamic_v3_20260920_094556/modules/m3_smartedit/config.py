@@ -7,7 +7,7 @@ class SmartEditConfig:
     topic_similarity_threshold: float = 0.18
     max_section_sentences: int = 4
     weak_formulation_margin: float = 0.15
-    auto_remove_exact_duplicates: bool = True
+    auto_remove_exact_duplicates: bool = False
 
     def __post_init__(self) -> None:
         for name in ("semantic_similarity_threshold", "topic_similarity_threshold",
