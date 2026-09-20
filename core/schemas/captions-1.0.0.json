@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M9 Captions 1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "time_domains", "source", "policy", "style", "captions", "summary", "warnings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "M9"}, "version": {"const": "1.0.0"}}},
+    "stage": {"const": "captions"},
+    "time_domains": {"type": "object", "additionalProperties": false, "required": ["source", "cut", "timeline"], "properties": {"source": {"const": "SOURCE"}, "cut": {"const": "CUT"}, "timeline": {"const": "TIMELINE"}}},
+    "source": {"type": "object", "additionalProperties": false, "required": ["transcript_path", "transcript_sha256", "timeline_draft_path", "timeline_draft_sha256"], "properties": {"transcript_path": {"type": "string"}, "transcript_sha256": {"$ref": "#/$defs/hash"}, "timeline_draft_path": {"type": "string"}, "timeline_draft_sha256": {"$ref": "#/$defs/hash"}}},
+    "policy": {"type": "object", "additionalProperties": false, "required": ["minimum_words", "target_words", "maximum_words", "pause_break_us", "maximum_lines", "maximum_characters_per_line"], "properties": {"minimum_words": {"type": "integer", "minimum": 1}, "target_words": {"type": "integer", "minimum": 1}, "maximum_words": {"type": "integer", "minimum": 1, "maximum": 6}, "pause_break_us": {"type": "integer", "minimum": 1}, "maximum_lines": {"const": 2}, "maximum_characters_per_line": {"type": "integer", "minimum": 8}}},
+    "style": {"type": "object", "additionalProperties": false, "required": ["position", "vertical_position_ratio", "alignment", "preset", "maximum_lines", "word_highlight", "animation"], "properties": {"position": {"const": "LOWER_SAFE"}, "vertical_position_ratio": {"type": "number", "minimum": 0, "maximum": 1}, "alignment": {"const": "CENTER"}, "preset": {"const": "MODERN_READABLE"}, "maximum_lines": {"const": 2}, "word_highlight": {"type": "boolean"}, "animation": {"const": "SUBTLE_OR_NONE"}}},
+    "captions": {"type": "array", "items": {"$ref": "#/$defs/caption"}},
+    "summary": {"type": "object", "additionalProperties": false, "required": ["caption_count", "included_word_count", "excluded_word_count"], "properties": {"caption_count": {"type": "integer", "minimum": 0}, "included_word_count": {"type": "integer", "minimum": 0}, "excluded_word_count": {"type": "integer", "minimum": 0}}},
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"const": "NO_CAPTIONS"}}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_interval": {"type": "object", "additionalProperties": false, "required": ["source_start_us", "source_end_us"], "properties": {"source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}}},
+    "word": {"type": "object", "additionalProperties": false, "required": ["id", "text", "source_start_us", "source_end_us", "cut_start_us", "cut_end_us", "timeline_start_us", "timeline_end_us"], "properties": {"id": {"type": "string"}, "text": {"type": "string", "minLength": 1}, "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}, "cut_start_us": {"type": "integer", "minimum": 0}, "cut_end_us": {"type": "integer", "minimum": 0}, "timeline_start_us": {"type": "integer", "minimum": 0}, "timeline_end_us": {"type": "integer", "minimum": 0}}},
+    "caption": {"type": "object", "additionalProperties": false, "required": ["id", "text", "lines", "word_ids", "words", "source_start_us", "source_end_us", "source_intervals", "cut_start_us", "cut_end_us", "timeline_start_us", "timeline_end_us", "provenance"], "properties": {
+      "id": {"type": "string", "pattern": "^caption[0-9]{6,}$"}, "text": {"type": "string", "minLength": 1},
+      "lines": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"type": "string", "minLength": 1}},
+      "word_ids": {"type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": {"type": "string"}},
+      "words": {"type": "array", "minItems": 1, "maxItems": 6, "items": {"$ref": "#/$defs/word"}},
+      "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"},
+      "source_intervals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_interval"}},
+      "cut_start_us": {"type": "integer", "minimum": 0}, "cut_end_us": {"type": "integer", "minimum": 1},
+      "timeline_start_us": {"type": "integer", "minimum": 0}, "timeline_end_us": {"type": "integer", "minimum": 1},
+      "provenance": {"type": "object", "additionalProperties": false, "required": ["transcript_sha256", "segment_ids"], "properties": {"transcript_sha256": {"$ref": "#/$defs/hash"}, "segment_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}}}
+    }}
+  }
+}

@@ -15,13 +15,13 @@ Aucune modification de contrat préexistant n'a donc été nécessaire.
 | M7 SoundDesign 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
 | M8 Music Planner 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
 | M6 Asset Manager 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
-| M10 pass A 1.0.0 | Implémenté et testé ; en attente de validation utilisateur |
-| M9 Captions | Non commencé |
+| M10 pass A 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 après correction de l'import bloquant ; gelé |
+| M9 Captions 1.0.0 | Implémenté et testé ; en attente de validation utilisateur |
 | M10 final | Non commencé |
 | M11 Resolve Builder | Non commencé |
 | M12 Quality Control | Non commencé |
 
-M0–M8 acceptés pour poursuivre. M10 Pass A attend sa validation explicite.
+M0–M8 et M10 Pass A acceptés pour poursuivre. M9 attend sa validation explicite.
 
 
 
@@ -276,4 +276,23 @@ M6 a ensuite été accepté explicitement par l'utilisateur le 20 septembre 2026
   tests ignorés sont les intégrations M1 ASR exigeant `AUTOREEL_TEST_MODEL`.
 - M9 Captions, M10 Pass Final et M11 Resolve Builder : aucun développement.
 
-M10 Pass A attend la validation explicite de l'utilisateur avant M9 Captions.
+M10 Pass A a ensuite été accepté par l'utilisateur sous réserve d'ajouter
+`TimelineCompilerError` dans `video.py`. Cette correction isolée a été appliquée
+et les 20 tests M10 ont réussi avant le gel définitif.
+
+## M9 Captions — vérification du 20 septembre 2026
+
+- Nouveau contrat `captions-1.0.0.json`; aucun contrat validé n'a été modifié.
+- Projection des mots M1 entièrement conservés via les événements V1 de Pass A.
+  Les mots supprimés ou coupés à une frontière ne réapparaissent pas.
+- Chaque caption conserve texte et mots exacts, provenance transcript,
+  SOURCE/CUT/TIMELINE et plusieurs `source_intervals` lorsqu'elle traverse une coupe.
+- Découpage déterministe court : cible de quatre mots, maximum six, ponctuation,
+  pause et petits mots isolés pris en compte, deux lignes maximum.
+- Style déclaratif 9:16 et timings par mot, sans police, renderer, média ou Resolve.
+- **5 tests M9 réussis, 0 échec, 0 ignoré**.
+- **245 tests complets réussis, 0 échec, 2 ignorés** sous Python 3.11. Les deux
+  tests ignorés sont les intégrations M1 ASR exigeant `AUTOREEL_TEST_MODEL`.
+- M10 Pass Final et M11 Resolve Builder : aucun développement.
+
+M9 attend la validation explicite de l'utilisateur avant M10 Pass Final.

@@ -1,3 +1,4 @@
+from .errors import TimelineCompilerError
 from .projection import require_cut_range, require_exact_projection
 
 

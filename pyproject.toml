@@ -25,6 +25,7 @@ autoreel-sounddesign = "modules.m7_sounddesign.cli:main"
 autoreel-music = "modules.m8_music.cli:main"
 autoreel-assets = "modules.m6_asset_manager.cli:main"
 autoreel-timeline-pass-a = "modules.m10_timeline_compiler.cli:main"
+autoreel-captions = "modules.m9_captions.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["core*", "modules*"]
