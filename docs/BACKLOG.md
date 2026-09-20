@@ -64,3 +64,12 @@ Ces points ne bloquent pas M8, conformément à l'acceptation du 20 septembre 20
 - Ajuster les zones de protection lorsque la durée réelle des SFX sera connue.
 
 Ces points ne bloquent pas M6, conformément à l'acceptation du 20 septembre 2026.
+
+## M6 accepté — ne pas modifier sans bug bloquant démontré
+
+- Évaluer le scoring lexical sur une bibliothèque réelle, avec noms et sidecars
+  multilingues, puis vérifier les licences en dehors du manifest technique.
+- Ajouter une mesure de loudness optionnelle sans rendre la résolution dépendante
+  d'un outil propriétaire.
+
+Ces points ne bloquent pas M10 Pass A, conformément à l'acceptation du 20 septembre 2026.

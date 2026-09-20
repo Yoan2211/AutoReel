@@ -14,14 +14,14 @@ Aucune modification de contrat préexistant n'a donc été nécessaire.
 | M5 Visual Planner 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
 | M7 SoundDesign 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
 | M8 Music Planner 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
-| M6 Asset Manager 1.0.0 | Implémenté et testé ; en attente de validation utilisateur |
-| M10 pass A | Non commencé |
+| M6 Asset Manager 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
+| M10 pass A 1.0.0 | Implémenté et testé ; en attente de validation utilisateur |
 | M9 Captions | Non commencé |
 | M10 final | Non commencé |
 | M11 Resolve Builder | Non commencé |
 | M12 Quality Control | Non commencé |
 
-M0–M5, M7 et M8 acceptés pour poursuivre. Ne pas commencer M10 avant validation explicite de M6.
+M0–M8 acceptés pour poursuivre. M10 Pass A attend sa validation explicite.
 
 
 
@@ -256,4 +256,24 @@ M8 a ensuite été accepté explicitement par l'utilisateur le 20 septembre 2026
   aucun catalogue distant, téléchargement ou contenu généré.
 - M9, M10 et M11 : aucun développement.
 
-M6 attend la validation explicite de l'utilisateur avant tout travail sur M10.
+M6 a ensuite été accepté explicitement par l'utilisateur le 20 septembre 2026.
+
+## M10 Timeline Compiler Pass A — vérification du 20 septembre 2026
+
+- M0 à M8 acceptés avant ce développement et gelés. Les empreintes SHA-256 de
+  leurs 176 fichiers ont été comparées avant/après M10 Pass A : aucune modification.
+- Nouveau contrat `timeline-draft-1.0.0.json`; aucun contrat validé n'a été modifié.
+- Six pistes fixes : V1 source, V2 visuels résolus, V3 réservée, A1 voix source,
+  A2 musique et A3 SFX. La chronologie V1/A1 vient exclusivement du mapping M3.
+- SOURCE, CUT et TIMELINE restent des coordonnées séparées. Les keyframes M4
+  sont attachées aux clips V1 et ne créent aucun média.
+- Seules les requêtes M6 `RESOLVED` sont matérialisées. `REVIEW` et `UNRESOLVED`
+  restent traçables dans `unmaterialized`.
+- Le compilateur rejette les provenances, mappings, durées, fichiers, types,
+  pistes, overlaps et timestamps incohérents, sans inventer ni tronquer un edit.
+- **20 tests M10 réussis, 0 échec, 0 ignoré**.
+- **240 tests complets réussis, 0 échec, 2 ignorés** sous Python 3.11. Les deux
+  tests ignorés sont les intégrations M1 ASR exigeant `AUTOREEL_TEST_MODEL`.
+- M9 Captions, M10 Pass Final et M11 Resolve Builder : aucun développement.
+
+M10 Pass A attend la validation explicite de l'utilisateur avant M9 Captions.
