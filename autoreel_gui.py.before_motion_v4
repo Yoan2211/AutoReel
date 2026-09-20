@@ -50,7 +50,6 @@ MODULE_ARTIFACTS = {
     "M3": ("edit_plan.json", "time_map_smartedit.json"),
     "M4": ("camera_plan.json",),
     "M5": ("visual_plan.json",),
-    "M5B": ("motion_plan.json",),
     "M7": ("sound_plan.json",),
     "M8": ("music_plan.json",),
     "M6": ("assets_manifest.json",),
@@ -60,7 +59,7 @@ MODULE_ARTIFACTS = {
 }
 
 PIPELINE_ORDER = [
-    "M0", "M1", "M2", "M3", "M4", "M5", "M5B",
+    "M0", "M1", "M2", "M3", "M4", "M5",
     "M7", "M8", "M6", "M10A", "M9", "M10F",
 ]
 
@@ -71,7 +70,6 @@ MODULE_LABELS = {
     "M3": "Nettoyage éditorial",
     "M4": "Cadrage automatique vertical",
     "M5": "Planification des visuels",
-    "M5B": "Animations graphiques",
     "M7": "Design sonore",
     "M8": "Musique et ducking",
     "M6": "Recherche des médias locaux",
@@ -85,7 +83,7 @@ MACRO_STEPS = [
     ("source", "Source", "Importation et vérification", ("M0",)),
     ("voice", "Voix", "Transcription et nettoyage", ("M1", "M2", "M3")),
     ("camera", "Cadrage", "Recadrage dynamique 9:16", ("M4",)),
-    ("style", "Habillage", "Visuels, animations, son et musique", ("M5", "M5B", "M7", "M8", "M6")),
+    ("style", "Habillage", "Visuels, son et musique", ("M5", "M7", "M8", "M6")),
     ("timeline", "Montage", "Timeline et sous-titres", ("M10A", "M9", "M10F")),
     ("resolve", "DaVinci", "Préparation du projet Resolve", ("M11",)),
 ]
@@ -810,18 +808,6 @@ class AutoReelGUI(tk.Tk):
                 "--camera-plan", str(p / "camera_plan.json"),
             ]))
 
-        if not self.module_complete("M5B"):
-            commands.append(("M5B", [
-                py, "-m", "modules.m5b_motion_designer",
-                str(p / "transcript.json"),
-                str(p / "edit_plan.json"),
-                str(p / "time_map_smartedit.json"),
-                str(p / "visual_plan.json"),
-                str(p / "motion_plan.json"),
-                str(p / "motion_assets"),
-                "--fps", "30", "--max-events", "8",
-            ]))
-
         if not self.module_complete("M7"):
             commands.append(("M7", [
                 py, "-m", "modules.m7_sounddesign",
@@ -1003,9 +989,6 @@ class AutoReelGUI(tk.Tk):
                 enhancer = ROOT / "tools" / "m11_dynamic_postprocess.py"
                 if enhancer.is_file():
                     self._run_subprocess([str(self.python_exe), str(enhancer), str(self.project_dir)], "M11")
-                motion_enhancer = ROOT / "tools" / "m11_motion_postprocess.py"
-                if motion_enhancer.is_file():
-                    self._run_subprocess([str(self.python_exe), str(motion_enhancer), str(self.project_dir)], "M11")
                 self.queue.put(("m11_done", None))
             except InterruptedError as exc:
                 self.queue.put(("cancelled", str(exc)))
