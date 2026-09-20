@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M2 speechcut SOURCE to CUT time map 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "source_time_domain", "target_time_domain", "source", "source_start_us", "source_end_us", "output_duration_us", "mappings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"const": "M2"}, "version": {"const": "1.0.0"}}
+    },
+    "stage": {"const": "speechcut"},
+    "source_time_domain": {"const": "SOURCE"},
+    "target_time_domain": {"const": "CUT"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transcript_path", "transcript_sha256", "media_path", "media_sha256", "cuts_sha256"],
+      "properties": {
+        "transcript_path": {"type": "string", "minLength": 1},
+        "transcript_sha256": {"$ref": "#/$defs/sha256"},
+        "media_path": {"type": "string", "minLength": 1},
+        "media_sha256": {"$ref": "#/$defs/sha256"},
+        "cuts_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "source_start_us": {"type": "integer"},
+    "source_end_us": {"type": "integer"},
+    "output_duration_us": {"type": "integer", "minimum": 0},
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "source", "target"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^map[0-9]{6,}$"},
+          "source": {"$ref": "#/$defs/source_interval"},
+          "target": {"$ref": "#/$defs/target_interval"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_interval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["time_domain", "start_us", "end_us"],
+      "properties": {"time_domain": {"const": "SOURCE"}, "start_us": {"type": "integer"}, "end_us": {"type": "integer"}}
+    },
+    "target_interval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["time_domain", "start_us", "end_us"],
+      "properties": {"time_domain": {"const": "CUT"}, "start_us": {"type": "integer", "minimum": 0}, "end_us": {"type": "integer", "minimum": 0}}
+    }
+  }
+}

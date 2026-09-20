@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M3 semantic edit plan 1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "time_domain", "source", "policy", "passages", "roles", "sections", "decisions", "summary", "warnings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {"$ref": "#/$defs/module"}, "stage": {"const": "smartedit"},
+    "time_domain": {"const": "SOURCE"}, "source": {"$ref": "#/$defs/source"},
+    "policy": {"type": "object", "additionalProperties": false,
+      "required": ["semantic_similarity_threshold", "topic_similarity_threshold", "max_section_sentences", "weak_formulation_margin", "auto_remove_exact_duplicates"],
+      "properties": {"semantic_similarity_threshold": {"type": "number", "minimum": 0, "maximum": 1}, "topic_similarity_threshold": {"type": "number", "minimum": 0, "maximum": 1}, "max_section_sentences": {"type": "integer", "minimum": 1}, "weak_formulation_margin": {"type": "number", "minimum": 0, "maximum": 1}, "auto_remove_exact_duplicates": {"type": "boolean"}}},
+    "passages": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["id", "source_start_us", "source_end_us", "text", "word_ids", "strength"],
+      "properties": {"id": {"type": "string"}, "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}, "text": {"type": "string", "minLength": 1}, "word_ids": {"type": "array", "items": {"type": "string"}}, "strength": {"type": "number", "minimum": 0, "maximum": 1}}}},
+    "roles": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["role", "passage_id", "confidence", "reason"], "properties": {"role": {"enum": ["HOOK", "INTRODUCTION", "CONCLUSION", "CTA"]}, "passage_id": {"type": "string"}, "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]}, "reason": {"type": "string"}}}},
+    "sections": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["id", "title", "theme_terms", "passage_ids", "source_start_us", "source_end_us"], "properties": {"id": {"type": "string"}, "title": {"type": "string"}, "theme_terms": {"type": "array", "items": {"type": "string"}}, "passage_ids": {"type": "array", "items": {"type": "string"}}, "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}}}},
+    "decisions": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "disposition", "confidence", "source_start_us", "source_end_us", "passage_ids", "preferred_passage_id", "similarity", "reason"],
+      "properties": {"id": {"type": "string"}, "kind": {"enum": ["EXACT_DUPLICATE", "SEMANTIC_REPETITION", "WEAKER_FORMULATION", "POTENTIALLY_REMOVABLE"]}, "disposition": {"enum": ["REVIEW", "AUTO_REMOVE"]}, "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]}, "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}, "passage_ids": {"type": "array", "items": {"type": "string"}}, "preferred_passage_id": {"type": ["string", "null"]}, "similarity": {"type": "number", "minimum": 0, "maximum": 1}, "reason": {"type": "string"}}}},
+    "summary": {"type": "object", "additionalProperties": false, "required": ["passage_count", "section_count", "review_count", "auto_remove_count", "additional_removed_duration_us"], "properties": {"passage_count": {"type": "integer", "minimum": 0}, "section_count": {"type": "integer", "minimum": 0}, "review_count": {"type": "integer", "minimum": 0}, "auto_remove_count": {"type": "integer", "minimum": 0}, "additional_removed_duration_us": {"type": "integer", "minimum": 0}}},
+    "warnings": {"type": "array", "items": {"const": "NO_SPEECH_RECOGNIZED"}}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "module": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "M3"}, "version": {"const": "1.0.0"}}},
+    "source": {"type": "object", "additionalProperties": false, "required": ["transcript_path", "transcript_sha256", "cuts_path", "cuts_sha256", "speechcut_time_map_path", "speechcut_time_map_sha256", "media_path", "media_sha256"], "properties": {"transcript_path": {"type": "string"}, "transcript_sha256": {"$ref": "#/$defs/hash"}, "cuts_path": {"type": "string"}, "cuts_sha256": {"$ref": "#/$defs/hash"}, "speechcut_time_map_path": {"type": "string"}, "speechcut_time_map_sha256": {"$ref": "#/$defs/hash"}, "media_path": {"type": "string"}, "media_sha256": {"$ref": "#/$defs/hash"}}}
+  }
+}

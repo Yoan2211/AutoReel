@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M6 Assets Manifest 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "source", "library", "policy", "requests", "assets", "library_issues", "summary", "warnings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "M6"}, "version": {"const": "1.0.0"}}},
+    "stage": {"const": "asset_manager"},
+    "source": {"type": "object", "additionalProperties": false,
+      "required": ["visual_plan_path", "visual_plan_sha256", "sound_plan_path", "sound_plan_sha256", "music_plan_path", "music_plan_sha256", "media_path", "media_sha256"],
+      "properties": {
+        "visual_plan_path": {"type": "string"}, "visual_plan_sha256": {"$ref": "#/$defs/hash"},
+        "sound_plan_path": {"type": "string"}, "sound_plan_sha256": {"$ref": "#/$defs/hash"},
+        "music_plan_path": {"type": "string"}, "music_plan_sha256": {"$ref": "#/$defs/hash"},
+        "media_path": {"type": "string"}, "media_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "library": {"type": "object", "additionalProperties": false, "required": ["root", "project_root", "recursive"],
+      "properties": {"root": {"type": "string"}, "project_root": {"type": "string"}, "recursive": {"type": "boolean"}}
+    },
+    "policy": {"type": "object", "additionalProperties": false, "required": ["resolved_score_threshold", "review_score_threshold", "recursive", "ffprobe_path"],
+      "properties": {"resolved_score_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "review_score_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "recursive": {"type": "boolean"}, "ffprobe_path": {"type": "string", "minLength": 1}}
+    },
+    "requests": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["request_id", "origin_module", "origin_id", "asset_type", "request_type", "query", "upstream_status", "desired_duration_us", "source_start_us", "source_end_us", "cut_start_us", "cut_end_us", "source_time_us", "cut_time_us", "asset_id", "match_score", "status", "reason"],
+      "properties": {
+        "request_id": {"type": "string"}, "origin_module": {"enum": ["M5", "M7", "M8"]}, "origin_id": {"type": "string"},
+        "asset_type": {"$ref": "#/$defs/asset_type"}, "request_type": {"type": "string", "minLength": 1}, "query": {"type": "string"},
+        "upstream_status": {"enum": ["AUTO", "REVIEW", "PROPOSED", "MUSIC"]}, "desired_duration_us": {"type": ["integer", "null"], "minimum": 0},
+        "source_start_us": {"type": ["integer", "null"]}, "source_end_us": {"type": ["integer", "null"]},
+        "cut_start_us": {"type": ["integer", "null"], "minimum": 0}, "cut_end_us": {"type": ["integer", "null"], "minimum": 0},
+        "source_time_us": {"type": ["integer", "null"]}, "cut_time_us": {"type": ["integer", "null"], "minimum": 0},
+        "asset_id": {"type": ["string", "null"]}, "match_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "status": {"enum": ["RESOLVED", "REVIEW", "UNRESOLVED"]}, "reason": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "UNRESOLVED"}}}, "then": {"properties": {"asset_id": {"type": "null"}, "match_score": {"const": 0}}}},
+        {"if": {"properties": {"status": {"enum": ["RESOLVED", "REVIEW"]}}}, "then": {"properties": {"asset_id": {"type": "string", "minLength": 1}, "match_score": {"type": "number", "exclusiveMinimum": 0}}}}
+      ]
+    }},
+    "assets": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["asset_id", "asset_type", "path", "path_kind", "sha256", "size_bytes", "metadata", "request_ids"],
+      "properties": {
+        "asset_id": {"type": "string", "pattern": "^(img|ill|broll|gfx|sfx|music)_[0-9a-f]{16}$"}, "asset_type": {"$ref": "#/$defs/asset_type"},
+        "path": {"type": "string", "minLength": 1}, "path_kind": {"enum": ["PROJECT_RELATIVE", "ABSOLUTE"]},
+        "sha256": {"$ref": "#/$defs/hash"}, "size_bytes": {"type": "integer", "minimum": 1},
+        "metadata": {"type": "object", "additionalProperties": false,
+          "required": ["media_kind", "format", "codec", "duration_us", "width", "height", "sample_rate_hz", "channels", "loudness_lufs"],
+          "properties": {"media_kind": {"enum": ["IMAGE", "VIDEO", "AUDIO"]}, "format": {"type": "string"},
+            "codec": {"type": ["string", "null"]}, "duration_us": {"type": ["integer", "null"], "minimum": 0},
+            "width": {"type": ["integer", "null"], "minimum": 1}, "height": {"type": ["integer", "null"], "minimum": 1},
+            "sample_rate_hz": {"type": ["integer", "null"], "minimum": 1}, "channels": {"type": ["integer", "null"], "minimum": 1},
+            "loudness_lufs": {"type": ["number", "null"]}}
+        },
+        "request_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}
+      }
+    }},
+    "library_issues": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["path", "reason"],
+      "properties": {"path": {"type": "string"}, "reason": {"type": "string", "minLength": 1}}
+    }},
+    "summary": {"type": "object", "additionalProperties": false,
+      "required": ["request_count", "resolved_count", "review_count", "unresolved_count", "unique_asset_count", "library_issue_count"],
+      "properties": {"request_count": {"type": "integer", "minimum": 0}, "resolved_count": {"type": "integer", "minimum": 0},
+        "review_count": {"type": "integer", "minimum": 0}, "unresolved_count": {"type": "integer", "minimum": 0},
+        "unique_asset_count": {"type": "integer", "minimum": 0}, "library_issue_count": {"type": "integer", "minimum": 0}}
+    },
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"enum": ["EMPTY_LIBRARY", "UNRESOLVED_REQUESTS", "INVALID_LIBRARY_ASSETS", "ABSOLUTE_ASSET_PATHS"]}}
+  },
+  "$defs": {"hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "asset_type": {"enum": ["IMAGE", "ILLUSTRATION", "BROLL", "GRAPHIC", "SFX", "MUSIC"]}}
+}

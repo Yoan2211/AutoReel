@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M8 Music Planner 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "source_time_domain", "target_time_domain", "source", "policy", "decision", "asset_request", "regions", "level_regions", "summary", "warnings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "M8"}, "version": {"const": "1.0.0"}}},
+    "stage": {"const": "music_planner"}, "source_time_domain": {"const": "SOURCE"}, "target_time_domain": {"const": "CUT"},
+    "source": {"type": "object", "additionalProperties": false,
+      "required": ["transcript_path", "transcript_sha256", "edit_plan_path", "edit_plan_sha256", "smartedit_time_map_path", "smartedit_time_map_sha256", "visual_plan_path", "visual_plan_sha256", "sound_plan_path", "sound_plan_sha256", "media_path", "media_sha256"],
+      "properties": {
+        "transcript_path": {"type": "string"}, "transcript_sha256": {"$ref": "#/$defs/hash"},
+        "edit_plan_path": {"type": "string"}, "edit_plan_sha256": {"$ref": "#/$defs/hash"},
+        "smartedit_time_map_path": {"type": "string"}, "smartedit_time_map_sha256": {"$ref": "#/$defs/hash"},
+        "visual_plan_path": {"type": "string"}, "visual_plan_sha256": {"$ref": "#/$defs/hash"},
+        "sound_plan_path": {"type": "string"}, "sound_plan_sha256": {"$ref": "#/$defs/hash"},
+        "media_path": {"type": "string"}, "media_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "policy": {"type": "object", "additionalProperties": false,
+      "required": ["minimum_music_duration_us", "proposal_duration_us", "speech_gain_db", "no_speech_gain_db", "fade_in_us", "fade_out_us", "speech_merge_gap_us", "minimum_lift_duration_us", "sfx_protection_us"],
+      "properties": {
+        "minimum_music_duration_us": {"type": "integer", "minimum": 1}, "proposal_duration_us": {"type": "integer", "minimum": 1},
+        "speech_gain_db": {"type": "number", "minimum": -30, "maximum": -25}, "no_speech_gain_db": {"type": "number", "minimum": -60, "maximum": 0},
+        "fade_in_us": {"type": "integer", "minimum": 1}, "fade_out_us": {"type": "integer", "minimum": 1},
+        "speech_merge_gap_us": {"type": "integer", "minimum": 1}, "minimum_lift_duration_us": {"type": "integer", "minimum": 1},
+        "sfx_protection_us": {"type": "integer", "minimum": 1}
+      }
+    },
+    "decision": {"type": "object", "additionalProperties": false, "required": ["status", "mood", "energy", "confidence", "reason"], "properties": {
+      "status": {"enum": ["MUSIC", "REVIEW", "NONE"]}, "mood": {"type": ["string", "null"]},
+      "energy": {"enum": ["LOW", "MEDIUM", "NONE"]}, "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+      "reason": {"type": "string", "minLength": 1}
+    }},
+    "asset_request": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": false,
+      "required": ["kind", "status", "mood", "energy", "desired_duration_us", "seamless_loop_acceptable", "reason"],
+      "properties": {"kind": {"const": "MUSIC"}, "status": {"enum": ["MUSIC", "REVIEW"]}, "mood": {"type": "string", "minLength": 1},
+        "energy": {"enum": ["LOW", "MEDIUM"]}, "desired_duration_us": {"type": "integer", "minimum": 1},
+        "seamless_loop_acceptable": {"type": "boolean"}, "reason": {"type": "string", "minLength": 1}}
+    }]},
+    "regions": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["id", "cut_start_us", "cut_end_us", "source_intervals", "mood", "energy", "speech_gain_db", "no_speech_gain_db", "fade_in_us", "fade_out_us", "strategy", "reason"],
+      "properties": {"id": {"type": "string", "pattern": "^music[0-9]{6,}$"}, "cut_start_us": {"type": "integer", "minimum": 0}, "cut_end_us": {"type": "integer", "minimum": 1},
+        "source_intervals": {"$ref": "#/$defs/source_intervals"}, "mood": {"type": "string"}, "energy": {"enum": ["LOW", "MEDIUM"]},
+        "speech_gain_db": {"type": "number", "minimum": -30, "maximum": -25}, "no_speech_gain_db": {"type": "number", "minimum": -60, "maximum": 0},
+        "fade_in_us": {"type": "integer", "minimum": 0}, "fade_out_us": {"type": "integer", "minimum": 0},
+        "strategy": {"const": "STABLE_BED"}, "reason": {"type": "string", "minLength": 1}}
+    }},
+    "level_regions": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["cut_start_us", "cut_end_us", "source_intervals", "mode", "gain_db", "reason"],
+      "properties": {"cut_start_us": {"type": "integer", "minimum": 0}, "cut_end_us": {"type": "integer", "minimum": 1},
+        "source_intervals": {"$ref": "#/$defs/source_intervals"}, "mode": {"enum": ["SPEECH_DUCK", "NO_SPEECH_LIFT", "SFX_PROTECTED", "STABLE_BASE"]},
+        "gain_db": {"type": "number", "minimum": -60, "maximum": 0}, "reason": {"type": "string", "minLength": 1}}
+    }},
+    "summary": {"type": "object", "additionalProperties": false, "required": ["music_region_count", "level_region_count", "speech_duck_count", "no_speech_lift_count", "sfx_protected_count"], "properties": {
+      "music_region_count": {"type": "integer", "minimum": 0}, "level_region_count": {"type": "integer", "minimum": 0},
+      "speech_duck_count": {"type": "integer", "minimum": 0}, "no_speech_lift_count": {"type": "integer", "minimum": 0}, "sfx_protected_count": {"type": "integer", "minimum": 0}
+    }},
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"const": "MUSIC_NOT_RECOMMENDED"}}
+  },
+  "allOf": [
+    {"if": {"properties": {"decision": {"properties": {"status": {"const": "NONE"}}}}}, "then": {"properties": {"decision": {"properties": {"mood": {"type": "null"}, "energy": {"const": "NONE"}}}, "asset_request": {"type": "null"}, "regions": {"maxItems": 0}, "level_regions": {"maxItems": 0}}}},
+    {"if": {"properties": {"decision": {"properties": {"status": {"enum": ["MUSIC", "REVIEW"]}}}}}, "then": {"properties": {"decision": {"properties": {"mood": {"type": "string", "minLength": 1}, "energy": {"enum": ["LOW", "MEDIUM"]}}}, "asset_request": {"type": "object"}, "regions": {"minItems": 1}, "level_regions": {"minItems": 1}}}}
+  ],
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_intervals": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["source_start_us", "source_end_us"], "properties": {"source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}}}}
+  }
+}

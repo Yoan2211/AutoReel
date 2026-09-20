@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M1 SOURCE transcription 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "time_domain",
+    "source",
+    "analysis",
+    "engine",
+    "options",
+    "language",
+    "language_probability",
+    "status",
+    "text",
+    "segments",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "const": "M1"
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      }
+    },
+    "time_domain": {
+      "const": "SOURCE"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "manifest_sha256",
+        "audio_stream_index"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "audio_stream_index": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_us",
+        "duration_us",
+        "sample_rate_hz",
+        "channels"
+      ],
+      "properties": {
+        "origin_us": {
+          "type": "integer"
+        },
+        "duration_us": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sample_rate_hz": {
+          "const": 16000
+        },
+        "channels": {
+          "const": 1
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "model",
+        "device",
+        "compute_type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "device": {
+          "enum": [
+            "cpu",
+            "cuda"
+          ]
+        },
+        "compute_type": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language_requested",
+        "beam_size",
+        "word_timestamps",
+        "vad_filter",
+        "condition_on_previous_text",
+        "task"
+      ],
+      "properties": {
+        "language_requested": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "beam_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "word_timestamps": {
+          "const": true
+        },
+        "vad_filter": {
+          "const": false
+        },
+        "condition_on_previous_text": {
+          "const": false
+        },
+        "task": {
+          "const": "transcribe"
+        }
+      }
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}$"
+    },
+    "language_probability": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "status": {
+      "enum": [
+        "transcribed",
+        "no_speech_recognized"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "start_us",
+          "end_us",
+          "text",
+          "no_speech_probability",
+          "words"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^s[0-9]{6,}$"
+          },
+          "start_us": {
+            "type": "integer"
+          },
+          "end_us": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "no_speech_probability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "words": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "start_us",
+                "end_us",
+                "text",
+                "probability"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^s[0-9]{6,}w[0-9]{6,}$"
+                },
+                "start_us": {
+                  "type": "integer"
+                },
+                "end_us": {
+                  "type": "integer"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "probability": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CPU_FALLBACK",
+          "OVERLAPPING_WORD_ESTIMATES",
+          "ZERO_DURATION_WORD_ESTIMATE",
+          "NO_SPEECH_RECOGNIZED"
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "no_speech_recognized"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "segments": {
+            "maxItems": 0
+          },
+          "text": {
+            "const": ""
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "segments": {
+            "minItems": 1
+          },
+          "text": {
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

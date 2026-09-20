@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M2 SpeechCut decisions 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "time_domain", "source", "policy", "decisions", "summary", "warnings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"const": "M2"}, "version": {"const": "1.0.0"}}
+    },
+    "stage": {"const": "speechcut"},
+    "time_domain": {"const": "SOURCE"},
+    "source": {"$ref": "#/$defs/source"},
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["long_silence_us", "review_pause_us", "retained_pause_us", "filler_padding_us", "filler_max_duration_us", "repetition_max_gap_us", "phrase_restart_max_gap_us", "phrase_restart_min_words", "phrase_restart_max_words", "false_start_max_words", "auto_apply_fillers", "auto_apply_repetitions"],
+      "properties": {
+        "long_silence_us": {"type": "integer", "minimum": 1},
+        "review_pause_us": {"type": "integer", "minimum": 1},
+        "retained_pause_us": {"type": "integer", "minimum": 0},
+        "filler_padding_us": {"type": "integer", "minimum": 0},
+        "filler_max_duration_us": {"type": "integer", "minimum": 0},
+        "repetition_max_gap_us": {"type": "integer", "minimum": 0},
+        "phrase_restart_max_gap_us": {"type": "integer", "minimum": 0},
+        "phrase_restart_min_words": {"type": "integer", "minimum": 2},
+        "phrase_restart_max_words": {"type": "integer", "minimum": 2},
+        "false_start_max_words": {"type": "integer", "minimum": 1},
+        "auto_apply_fillers": {"type": "boolean"},
+        "auto_apply_repetitions": {"type": "boolean"}
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "kind", "disposition", "confidence", "time_domain", "start_us", "end_us", "duration_us", "reason", "word_ids"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^cut[0-9]{6,}$"},
+          "kind": {"enum": ["LONG_SILENCE", "UNNECESSARY_PAUSE", "FILLER", "IMMEDIATE_REPETITION", "PHRASE_RESTART", "FALSE_START"]},
+          "disposition": {"enum": ["AUTO", "REVIEW", "SUPPRESSED"]},
+          "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+          "time_domain": {"const": "SOURCE"},
+          "start_us": {"type": "integer"},
+          "end_us": {"type": "integer"},
+          "duration_us": {"type": "integer", "minimum": 1},
+          "reason": {"type": "string", "minLength": 1},
+          "word_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "retained_pause_us": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidate_count", "auto_applied_count", "review_count", "suppressed_count", "removed_duration_us"],
+      "properties": {
+        "candidate_count": {"type": "integer", "minimum": 0},
+        "auto_applied_count": {"type": "integer", "minimum": 0},
+        "review_count": {"type": "integer", "minimum": 0},
+        "suppressed_count": {"type": "integer", "minimum": 0},
+        "removed_duration_us": {"type": "integer", "minimum": 0}
+      }
+    },
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"enum": ["NO_SPEECH_RECOGNIZED"]}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transcript_path", "transcript_sha256", "media_path", "media_sha256"],
+      "properties": {
+        "transcript_path": {"type": "string", "minLength": 1},
+        "transcript_sha256": {"$ref": "#/$defs/sha256"},
+        "media_path": {"type": "string", "minLength": 1},
+        "media_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

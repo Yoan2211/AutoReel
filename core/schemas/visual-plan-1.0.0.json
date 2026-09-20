@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M5 Visual Planner 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "source_time_domain", "target_time_domain", "source", "policy", "requests", "summary", "warnings"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "M5"}, "version": {"const": "1.0.0"}}},
+    "stage": {"const": "visual_planner"},
+    "source_time_domain": {"const": "SOURCE"},
+    "target_time_domain": {"const": "CUT"},
+    "source": {"type": "object", "additionalProperties": false, "required": ["edit_plan_path", "edit_plan_sha256", "transcript_path", "transcript_sha256", "smartedit_time_map_path", "smartedit_time_map_sha256", "camera_plan_path", "camera_plan_sha256", "media_path", "media_sha256"], "properties": {
+      "edit_plan_path": {"type": "string"}, "edit_plan_sha256": {"$ref": "#/$defs/hash"},
+      "transcript_path": {"type": "string"}, "transcript_sha256": {"$ref": "#/$defs/hash"},
+      "smartedit_time_map_path": {"type": "string"}, "smartedit_time_map_sha256": {"$ref": "#/$defs/hash"},
+      "camera_plan_path": {"type": ["string", "null"]}, "camera_plan_sha256": {"anyOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]},
+      "media_path": {"type": "string"}, "media_sha256": {"$ref": "#/$defs/hash"}
+    }},
+    "policy": {"type": "object", "additionalProperties": false, "required": ["minimum_gap_us", "maximum_visuals_per_section", "target_duration_us", "minimum_duration_us", "maximum_duration_us", "auto_confidence_threshold"], "properties": {
+      "minimum_gap_us": {"type": "integer", "minimum": 1}, "maximum_visuals_per_section": {"type": "integer", "minimum": 1},
+      "target_duration_us": {"type": "integer", "minimum": 1}, "minimum_duration_us": {"type": "integer", "minimum": 1},
+      "maximum_duration_us": {"type": "integer", "minimum": 1}, "auto_confidence_threshold": {"type": "number", "minimum": 0, "maximum": 1}
+    }},
+    "requests": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+      "required": ["id", "passage_id", "section_id", "disposition", "media_type", "concept", "source_start_us", "source_end_us", "cut_start_us", "cut_end_us", "desired_duration_us", "priority", "confidence", "reason"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^visual[0-9]{6,}$"}, "passage_id": {"type": "string"}, "section_id": {"type": "string"},
+        "disposition": {"enum": ["AUTO", "REVIEW", "NONE"]}, "media_type": {"enum": ["ILLUSTRATION", "PHOTO", "BROLL", "ICON_GRAPHIC", "NONE"]},
+        "concept": {"type": ["string", "null"]}, "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"},
+        "cut_start_us": {"type": ["integer", "null"], "minimum": 0}, "cut_end_us": {"type": ["integer", "null"], "minimum": 0},
+        "desired_duration_us": {"type": "integer", "minimum": 0}, "priority": {"enum": ["HIGH", "MEDIUM", "LOW", "NONE"]},
+        "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]}, "reason": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {"if": {"properties": {"disposition": {"const": "NONE"}}}, "then": {"properties": {"media_type": {"const": "NONE"}, "concept": {"type": "null"}, "desired_duration_us": {"const": 0}, "priority": {"const": "NONE"}}}},
+        {"if": {"properties": {"disposition": {"enum": ["AUTO", "REVIEW"]}}}, "then": {"properties": {"media_type": {"enum": ["ILLUSTRATION", "PHOTO", "BROLL", "ICON_GRAPHIC"]}, "concept": {"type": "string", "minLength": 1}, "cut_start_us": {"type": "integer", "minimum": 0}, "cut_end_us": {"type": "integer", "minimum": 0}, "desired_duration_us": {"type": "integer", "minimum": 1}, "priority": {"enum": ["HIGH", "MEDIUM", "LOW"]}}}}
+      ]
+    }},
+    "summary": {"type": "object", "additionalProperties": false, "required": ["passage_count", "candidate_count", "selected_count", "auto_count", "review_count", "none_count"], "properties": {
+      "passage_count": {"type": "integer", "minimum": 0}, "candidate_count": {"type": "integer", "minimum": 0}, "selected_count": {"type": "integer", "minimum": 0},
+      "auto_count": {"type": "integer", "minimum": 0}, "review_count": {"type": "integer", "minimum": 0}, "none_count": {"type": "integer", "minimum": 0}
+    }},
+    "warnings": {"type": "array", "uniqueItems": true, "items": {"enum": ["NO_SPEECH_RECOGNIZED", "NO_VISUALS_SELECTED"]}}
+  },
+  "$defs": {"hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

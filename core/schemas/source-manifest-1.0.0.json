@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M0 source manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "source",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "const": "M0"
+        },
+        "version": {
+          "const": "1.0.0"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "size_bytes",
+        "sha256",
+        "time_domain",
+        "start_us",
+        "duration_us",
+        "duration_origin",
+        "video",
+        "audio"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "time_domain": {
+          "const": "SOURCE"
+        },
+        "start_us": {
+          "type": "integer"
+        },
+        "duration_us": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_origin": {
+          "enum": [
+            "video_stream",
+            "container_estimate"
+          ]
+        },
+        "video": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stream_index",
+            "codec",
+            "width",
+            "height",
+            "display_width",
+            "display_height",
+            "rotation_degrees",
+            "sample_aspect_ratio",
+            "avg_frame_rate",
+            "nominal_frame_rate",
+            "frame_timing",
+            "pixel_format",
+            "color_primaries",
+            "color_transfer",
+            "color_space",
+            "color_range",
+            "dynamic_range"
+          ],
+          "properties": {
+            "stream_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "codec": {
+              "type": "string"
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "display_width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "display_height": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "rotation_degrees": {
+              "enum": [
+                0,
+                90,
+                180,
+                270
+              ]
+            },
+            "sample_aspect_ratio": {
+              "type": "string"
+            },
+            "avg_frame_rate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "nominal_frame_rate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "frame_timing": {
+              "const": "UNDETERMINED"
+            },
+            "pixel_format": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_primaries": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_transfer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_space": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "color_range": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dynamic_range": {
+              "enum": [
+                "SDR",
+                "HLG",
+                "PQ",
+                "UNKNOWN"
+              ]
+            }
+          }
+        },
+        "audio": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "stream_index",
+              "codec",
+              "sample_rate_hz",
+              "channels",
+              "start_us",
+              "duration_us"
+            ],
+            "properties": {
+              "stream_index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "codec": {
+                "type": "string"
+              },
+              "sample_rate_hz": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "channels": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "start_us": {
+                "type": "integer"
+              },
+              "duration_us": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "HDR_SOURCE_REQUIRES_COLOR_MANAGEMENT",
+          "COLOR_TRANSFER_UNKNOWN",
+          "VIDEO_DURATION_ESTIMATED_FROM_CONTAINER",
+          "MULTIPLE_VIDEO_STREAMS_PRIMARY_SELECTED",
+          "NO_AUDIO_STREAM"
+        ]
+      }
+    }
+  }
+}

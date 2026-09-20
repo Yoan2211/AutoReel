@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+/models/*
+!/models/.gitkeep
+/assets/*
+!/assets/.gitkeep
+/projects/*
+!/projects/.gitkeep
+.testdeps/
