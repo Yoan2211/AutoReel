@@ -16,12 +16,12 @@ Aucune modification de contrat préexistant n'a donc été nécessaire.
 | M8 Music Planner 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
 | M6 Asset Manager 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 ; gelé sauf bug bloquant démontré |
 | M10 pass A 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 après correction de l'import bloquant ; gelé |
-| M9 Captions 1.0.0 | Implémenté et testé ; en attente de validation utilisateur |
-| M10 final | Non commencé |
+| M9 Captions 1.0.0 | Accepté par l'utilisateur le 20 septembre 2026 après correction de la longueur des lignes ; gelé |
+| M10 final 1.0.0 | Implémenté et testé ; en attente de validation utilisateur |
 | M11 Resolve Builder | Non commencé |
 | M12 Quality Control | Non commencé |
 
-M0–M8 et M10 Pass A acceptés pour poursuivre. M9 attend sa validation explicite.
+M0–M9 et M10 Pass A acceptés pour poursuivre. M10 Final attend sa validation explicite.
 
 
 
@@ -295,4 +295,27 @@ et les 20 tests M10 ont réussi avant le gel définitif.
   tests ignorés sont les intégrations M1 ASR exigeant `AUTOREEL_TEST_MODEL`.
 - M10 Pass Final et M11 Resolve Builder : aucun développement.
 
-M9 attend la validation explicite de l'utilisateur avant M10 Pass Final.
+M9 a ensuite été accepté par l'utilisateur sous réserve que chaque entrée de
+`lines` respecte réellement `maximum_characters_per_line`. La segmentation et
+la séparation des lignes ont été corrigées sans refactorisation ; les 5 tests
+M9 ont réussi avant son gel définitif.
+
+## M10 Timeline Compiler Final — vérification du 20 septembre 2026
+
+- Nouveau contrat `timeline-1.0.0.json` avec six pistes et
+  `stage: timeline_compiler_final`; aucun contrat validé n'a été modifié.
+- V1, V2, A1, A2, A3, `unmaterialized` et `diagnostics` sont copiés exactement
+  depuis Pass A. V3 reçoit uniquement les événements `CAPTION` de M9.
+- Texte, lignes, coordonnées SOURCE/CUT/TIMELINE, intervalles SOURCE, mots,
+  style et provenance M9 sont repris sans resegmentation ni recalcul.
+- Le chemin et le SHA-256 du draft référencé par M9 doivent désigner exactement
+  l'entrée fournie. Les deux entrées sont revérifiées avant publication.
+- Rejet des captions hors durée, overlaps, incohérences CUT/TIMELINE,
+  projections SOURCE incompatibles avec V1 et événements V3 invalides.
+- Publication exclusive de `timeline.json`; aucun média ni entrée n'est modifié.
+- **6 tests M10 Final réussis**, en plus des **20 tests Pass A**.
+- **251 tests complets réussis, 0 échec, 2 ignorés** sous Python 3.11. Les deux
+  tests ignorés sont les intégrations M1 ASR exigeant `AUTOREEL_TEST_MODEL`.
+- M11 Resolve Builder : aucun développement.
+
+M10 Final attend la validation explicite de l'utilisateur avant M11.

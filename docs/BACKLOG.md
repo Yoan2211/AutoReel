@@ -73,3 +73,12 @@ Ces points ne bloquent pas M6, conformément à l'acceptation du 20 septembre 20
   d'un outil propriétaire.
 
 Ces points ne bloquent pas M10 Pass A, conformément à l'acceptation du 20 septembre 2026.
+
+## M9 accepté — ne pas modifier sans bug bloquant démontré
+
+- Évaluer les seuils de pause, la longueur des groupes et la position verticale
+  sur des vidéos françaises réelles avec débits de parole variés.
+- Ajuster ultérieurement le style dans le renderer sans modifier le texte ni les
+  timings produits par M9.
+
+Ces points ne bloquent pas M10 Final, conformément à l'acceptation du 20 septembre 2026.

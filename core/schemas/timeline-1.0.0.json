@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AutoReel M10 Final Timeline 1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "module", "stage", "time_domains", "source", "format", "tracks", "unmaterialized", "diagnostics", "summary"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "module": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "M10"}, "version": {"const": "1.0.0"}}},
+    "stage": {"const": "timeline_compiler_final"},
+    "time_domains": {"type": "object", "additionalProperties": false, "required": ["source", "cut", "timeline"], "properties": {"source": {"const": "SOURCE"}, "cut": {"const": "CUT"}, "timeline": {"const": "TIMELINE"}}},
+    "source": {"type": "object", "additionalProperties": false, "required": ["timeline_draft_path", "timeline_draft_sha256", "captions_path", "captions_sha256", "pass_a_source"], "properties": {"timeline_draft_path": {"type": "string"}, "timeline_draft_sha256": {"$ref": "#/$defs/hash"}, "captions_path": {"type": "string"}, "captions_sha256": {"$ref": "#/$defs/hash"}, "pass_a_source": {"type": "object"}}},
+    "format": {"type": "object", "additionalProperties": false, "required": ["width", "height", "aspect_ratio", "duration_us", "timeline_start_us"], "properties": {"width": {"const": 1080}, "height": {"const": 1920}, "aspect_ratio": {"const": "9:16"}, "duration_us": {"type": "integer", "minimum": 0}, "timeline_start_us": {"const": 0}}},
+    "tracks": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/track"}},
+    "unmaterialized": {"type": "array", "items": {"type": "object"}},
+    "diagnostics": {"type": "array", "items": {"type": "object"}},
+    "summary": {"type": "object", "additionalProperties": false, "required": ["track_count", "event_count", "caption_event_count", "pass_a_event_count", "unmaterialized_count", "diagnostic_count"], "properties": {"track_count": {"const": 6}, "event_count": {"type": "integer", "minimum": 0}, "caption_event_count": {"type": "integer", "minimum": 0}, "pass_a_event_count": {"type": "integer", "minimum": 0}, "unmaterialized_count": {"type": "integer", "minimum": 0}, "diagnostic_count": {"type": "integer", "minimum": 0}}}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "track": {"type": "object", "additionalProperties": false, "required": ["id", "kind", "index", "role", "events"], "properties": {"id": {"enum": ["V1", "V2", "V3", "A1", "A2", "A3"]}, "kind": {"enum": ["VIDEO", "AUDIO"]}, "index": {"type": "integer", "minimum": 1, "maximum": 3}, "role": {"enum": ["SOURCE_VIDEO", "VISUALS_BROLL", "RESERVED_GRAPHICS_CAPTIONS", "SOURCE_VOICE", "MUSIC", "SFX"]}, "events": {"type": "array", "items": {"anyOf": [{"$ref": "#/$defs/caption_event"}, {"$ref": "#/$defs/pass_a_event"}]}}}},
+    "pass_a_event": {"type": "object", "required": ["id", "type", "timeline_start_us", "timeline_end_us"], "properties": {"id": {"type": "string"}, "type": {"enum": ["SOURCE_VIDEO", "VISUAL_ASSET", "SOURCE_AUDIO", "MUSIC_ASSET", "SFX_ASSET"]}, "timeline_start_us": {"type": "integer", "minimum": 0}, "timeline_end_us": {"type": "integer", "minimum": 1}}},
+    "caption_event": {"type": "object", "additionalProperties": false, "required": ["id", "type", "caption_id", "text", "lines", "source_start_us", "source_end_us", "source_intervals", "cut_start_us", "cut_end_us", "timeline_start_us", "timeline_end_us", "word_ids", "words", "style", "provenance"], "properties": {
+      "id": {"type": "string", "pattern": "^v3_[0-9]{6,}$"}, "type": {"const": "CAPTION"}, "caption_id": {"type": "string", "pattern": "^caption[0-9]{6,}$"}, "text": {"type": "string", "minLength": 1},
+      "lines": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"type": "string", "minLength": 1}},
+      "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}, "source_intervals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_interval"}},
+      "cut_start_us": {"type": "integer", "minimum": 0}, "cut_end_us": {"type": "integer", "minimum": 1}, "timeline_start_us": {"type": "integer", "minimum": 0}, "timeline_end_us": {"type": "integer", "minimum": 1},
+      "word_ids": {"type": "array", "minItems": 1, "maxItems": 6, "uniqueItems": true, "items": {"type": "string"}}, "words": {"type": "array", "minItems": 1, "maxItems": 6, "items": {"$ref": "#/$defs/word"}},
+      "style": {"$ref": "#/$defs/style"}, "provenance": {"$ref": "#/$defs/provenance"}
+    }},
+    "source_interval": {"type": "object", "additionalProperties": false, "required": ["source_start_us", "source_end_us"], "properties": {"source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}}},
+    "word": {"type": "object", "additionalProperties": false, "required": ["id", "text", "source_start_us", "source_end_us", "cut_start_us", "cut_end_us", "timeline_start_us", "timeline_end_us"], "properties": {"id": {"type": "string"}, "text": {"type": "string", "minLength": 1}, "source_start_us": {"type": "integer"}, "source_end_us": {"type": "integer"}, "cut_start_us": {"type": "integer", "minimum": 0}, "cut_end_us": {"type": "integer", "minimum": 0}, "timeline_start_us": {"type": "integer", "minimum": 0}, "timeline_end_us": {"type": "integer", "minimum": 0}}},
+    "style": {"type": "object", "additionalProperties": false, "required": ["position", "vertical_position_ratio", "alignment", "preset", "maximum_lines", "word_highlight", "animation"], "properties": {"position": {"const": "LOWER_SAFE"}, "vertical_position_ratio": {"type": "number", "minimum": 0, "maximum": 1}, "alignment": {"const": "CENTER"}, "preset": {"const": "MODERN_READABLE"}, "maximum_lines": {"const": 2}, "word_highlight": {"type": "boolean"}, "animation": {"const": "SUBTLE_OR_NONE"}}},
+    "provenance": {"type": "object", "additionalProperties": false, "required": ["module", "captions_sha256", "transcript_sha256", "segment_ids"], "properties": {"module": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"id": {"const": "M9"}, "version": {"const": "1.0.0"}}}, "captions_sha256": {"$ref": "#/$defs/hash"}, "transcript_sha256": {"$ref": "#/$defs/hash"}, "segment_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}}}
+  }
+}

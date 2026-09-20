@@ -32,6 +32,8 @@ def test_end_to_end_preserves_words_domains_style_and_input(tmp_path):
     value = plan_captions(transcript, timeline, output)
     assert value["captions"] and all(1 <= len(item["words"]) <= 6 for item in value["captions"])
     assert all(len(item["lines"]) <= 2 for item in value["captions"])
+    assert all(len(line) <= value["policy"]["maximum_characters_per_line"]
+               for item in value["captions"] for line in item["lines"])
     assert all(item["cut_start_us"] == item["timeline_start_us"] for item in value["captions"])
     assert all(item["text"] == "".join(word["text"] for word in item["words"]).strip()
                for item in value["captions"])

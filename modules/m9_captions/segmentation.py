@@ -18,6 +18,11 @@ def _should_break(group, current, following, config):
 def segment(words, config):
     groups, current = [], []
     for index, word in enumerate(words):
+        candidate_text = "".join(item.text for item in current + [word]).strip()
+        if current and len(candidate_text) > config.maximum_lines * config.maximum_characters_per_line:
+            groups.append(current); current = []
+        if len(word.text.strip()) > config.maximum_lines * config.maximum_characters_per_line:
+            raise ValueError("A spoken token cannot fit within the configured caption lines")
         current.append(word)
         following = words[index + 1] if index + 1 < len(words) else None
         if following is None or _should_break(current, word, following, config):
@@ -42,7 +47,13 @@ def text_and_lines(words, maximum_characters):
     for split in range(1, len(words)):
         left = "".join(item.text for item in words[:split]).strip()
         right = "".join(item.text for item in words[split:]).strip()
+        if len(left) > maximum_characters or len(right) > maximum_characters:
+            continue
         score = (max(len(left), len(right)), abs(len(left) - len(right)))
         if best is None or score < best[0]:
             best = score, [left, right]
-    return text, best[1]
+    if best is not None:
+        return text, best[1]
+    if len(text) <= 2 * maximum_characters:
+        return text, [text[:maximum_characters], text[maximum_characters:]]
+    raise ValueError("Caption text cannot fit within two configured lines")

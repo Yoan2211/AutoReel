@@ -1,7 +1,7 @@
 # AutoReel
 
 Pipeline modulaire de préparation de vidéos courtes pour DaVinci Resolve.
-**M0 à M8 et M10 Timeline Compiler Pass A v1.0.0 sont acceptés. M9 Captions v1.0.0 est implémenté et attend sa validation utilisateur.**
+**M0 à M9 et M10 Timeline Compiler Pass A v1.0.0 sont acceptés. M10 Timeline Compiler Final v1.0.0 est implémenté et attend sa validation utilisateur.**
 Voir [les règles](AGENTS.md), [le contrat M0](modules/m0_ingest/README.md)
 [le contrat M1](modules/m1_transcription/README.md), [le backlog](docs/BACKLOG.md)
 et [l'état des modules](docs/STATUS.md).
@@ -35,12 +35,13 @@ Le test d'intégration réel est ignoré explicitement si FFmpeg/FFprobe manquen
 - `modules/m6_asset_manager/` : résolution locale, validation et manifest d'assets stables.
 - `modules/m10_timeline_compiler/` : compilation pure de la timeline Pass A, sans décision éditoriale.
 - `modules/m9_captions/` : captions SOURCE/CUT/TIMELINE depuis les mots M1 et la chronologie Pass A.
+- `modules/m10_timeline_compiler/final_compiler.py` : fusion finale immuable de Pass A et des captions M9.
 - `models/`, `assets/`, `projects/` : données locales non versionnées.
 - `tests/` : tests transversaux du socle partagé.
 - `tools/` : emplacement réservé aux outils auxiliaires.
 - `docs/` : suivi de validation.
 
-M10 Pass Final et les modules suivants, le rendu et l'accès à Resolve ne sont pas implémentés.
+M11 et les modules suivants, le rendu et l'accès à Resolve ne sont pas implémentés.
 
 ## AutoCam M4
 
